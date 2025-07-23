@@ -20,7 +20,7 @@ def main():
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-    logger = logging.getLogger('Lazarus_Ground_Station')
+    logger = logging.getLogger('HORUS_FAS_logger')
     logger.info(f"Log file location: {log_file}")
     logger.info("Uruchamianie aplikacji")
 
@@ -47,4 +47,7 @@ if __name__ == "__main__":
         os.environ["QT_QPA_PLATFORM"] = "windows"
     elif operational_system == 'Linux':
         os.environ["QT_QPA_PLATFORM"] = "xcb"
-    main()
+    try:
+        main()
+    except Exception as e:
+        print("An exception has occurred: ", e)

@@ -1,0 +1,8 @@
+The log and csv file is located in the following location (you can just paste it in the search bar):
+
+%appdata%\Lazarus_Ground_Station
+
+
+For example on my computer the path would look like this:
+
+C:\Users\adria\AppData\Roaming\Lazarus_Ground_Station

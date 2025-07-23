@@ -9,7 +9,7 @@ Ground station responsible for analyzing and displaying flight parameters of roc
 ```bash
 git clone https://github.com/AdrianPanasiewicz/HORUS_FAS.git
 ```
-2. Open the project in Visual Studio or another C# IDE.
+2. Open the project in Pycharm or another Python IDE.
 3. Build the solution and run the application.
 
 ## Contribution

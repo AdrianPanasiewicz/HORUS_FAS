@@ -48,6 +48,7 @@ if __name__ == "__main__":
     elif operational_system == 'Linux':
         os.environ["QT_QPA_PLATFORM"] = "xcb"
     try:
+        print("HI")
         main()
     except Exception as e:
         print("An exception has occurred: ", e)

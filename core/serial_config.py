@@ -64,6 +64,7 @@ class SerialConfigDialog(QDialog):
         port_layout = QHBoxLayout()
         port_layout.addWidget(QLabel("Port COM:"))
         self.port_combo = QComboBox()
+        self.port_combo.setStyleSheet("max-width: 130px;")
         self.refresh_ports()
         port_layout.addWidget(self.port_combo)
 

@@ -60,8 +60,8 @@ class MainWindow(QMainWindow):
             color: white;
         """)
         self.setWindowIcon(QIcon(r'gui/white_icon.png'))
-        # self.setStyleSheet(
-        #     open(r'gui/darkstyle.qss').read())
+        self.setStyleSheet(
+            open(r'gui/darkstyle.qss').read())
 
         self.serial = SerialReader(config['port'], config['baudrate'])
         self.logger.info(f"SerialReader zainicjalizowany na porcie {config['port']} z baudrate {config['baudrate']}")
@@ -86,7 +86,7 @@ class MainWindow(QMainWindow):
         # Konsola
         self.console = QTextEdit()
         self.console.setReadOnly(True)
-        self.console.setStyleSheet("background-color: #1f1f1f; color: white; font-family: monospace;")
+        # self.console.setStyleSheet("background-color: #1f1f1f; color: white; font-family: monospace;")
 
         # Etykiety
         self.label_info = QLabel(f"Pitch: {self.current_data['pitch']:.2f}°, Roll: {self.current_data['roll']:.2f}°\n"f"V: {self.current_data['velocity']:.2f} m/s, H: {self.current_data['altitude']:.2f} m")

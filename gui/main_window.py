@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (QMainWindow, QTextEdit,
                              QPushButton,
                              QGridLayout, QVBoxLayout)
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon
 import folium
 from core.serial_reader import SerialReader
 from gui.live_plot import LivePlot
@@ -53,12 +54,14 @@ class MainWindow(QMainWindow):
 
         self.signal_quality = "None"
 
-        self.setWindowTitle("LoRa Telemetry")
+        self.setWindowTitle("HORUS_FAS")
         self.setStyleSheet("""
             background-color: black; 
             color: white;
         """)
-        # self.setMinimumSize(1200, 800)
+        self.setWindowIcon(QIcon(r'gui/white_icon.png'))
+        # self.setStyleSheet(
+        #     open(r'gui/darkstyle.qss').read())
 
         self.serial = SerialReader(config['port'], config['baudrate'])
         self.logger.info(f"SerialReader zainicjalizowany na porcie {config['port']} z baudrate {config['baudrate']}")

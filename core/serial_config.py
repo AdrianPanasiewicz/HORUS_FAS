@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QApplication, QDialog,
                              QLabel,
                              QComboBox, QPushButton,
                              QGroupBox)
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon
 import serial.tools.list_ports
 
 
@@ -42,6 +42,7 @@ class SerialConfigDialog(QDialog):
             QPushButton:hover { background-color: #3d566e; }
             QPushButton:disabled { background-color: #2c3e50; color: #7f8c8d; }
         """)
+        self.setWindowIcon(QIcon(r'gui/white_icon.png'))
 
         self.port_name = ""
         self.baud_rate = 9600

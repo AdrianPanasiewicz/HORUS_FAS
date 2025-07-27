@@ -1,18 +1,19 @@
 import logging
 from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5.QtWidgets import (QMainWindow, QTextEdit,
-                             QWidget,
+from PyQt5.QtWidgets import (QMainWindow,
+                             QWidget, QSizePolicy,
                              QHBoxLayout, QLabel,
-                             QPushButton,
                              QGridLayout, QVBoxLayout)
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
+from PyQt5 import QtCore
 import folium
 from core.serial_reader import SerialReader
 from gui.live_plot import LivePlot
 from datetime import datetime
 from core.process_data import ProcessData
 from core.csv_handler import CsvHandler
+
 
 class MainWindow(QMainWindow):
     def __init__(self, config):
@@ -21,19 +22,14 @@ class MainWindow(QMainWindow):
         self.logger.info("Inicjalizacja głównego okna")
 
         self.now_str = ""
-        self.console_update_counter = 0
-        self.start_detection = False
-        self.calib_detection = False
-        self.apogee_detection = False
-        self.recovery_detection = False
-        self.landing_detection = False
-        self.engine_detection = False
 
         self.current_data = {
-            'velocity': 0.0,
+            'ver_velocity': 0.0,
+            'ver_accel': 0.0,
             'altitude': 0.0,
             'pitch': 0.0,
             'roll': 0.0,
+            'yaw': 0.0,
             'status': 0,
             'latitude': 52.2549,
             'longitude': 20.9004,
@@ -51,8 +47,6 @@ class MainWindow(QMainWindow):
         self.csv_handler = CsvHandler()
         self.logger.info(
             f"CSV handler zainicjalizowany w sesji: {self.csv_handler.session_dir}")
-
-        self.signal_quality = "None"
 
         self.setWindowTitle("HORUS_FAS")
         self.setStyleSheet("""
@@ -79,55 +73,19 @@ class MainWindow(QMainWindow):
 
         # Wykresy
         self.alt_plot = LivePlot(title="Altitude", color='b')
-        self.velocity_plot = LivePlot(title="Velocity", color='r')
+        self.ver_velocity_plot = LivePlot(title="Ver Velocity", color='r')
+        self.ver_accel_plot = LivePlot(title="Ver Acceleration", color='c')
         self.pitch_plot = LivePlot(title="Pitch", color='y')
         self.roll_plot = LivePlot(title="Roll", color='g')
+        self.yaw_plot = LivePlot(title="Yaw", color='g')
 
-        # Konsola
-        self.console = QTextEdit()
-        self.console.setReadOnly(True)
-        # self.console.setStyleSheet("background-color: #1f1f1f; color: white; font-family: monospace;")
-
-        # Etykiety
-        self.label_info = QLabel(f"Pitch: {self.current_data['pitch']:.2f}°, Roll: {self.current_data['roll']:.2f}°\n"f"V: {self.current_data['velocity']:.2f} m/s, H: {self.current_data['altitude']:.2f} m")
-        self.label_info.setStyleSheet("color: white; font-size: 18px;")
-
-        self.label_pos = QLabel("Pos: --  --  ")
-        self.label_pos.setStyleSheet("color: white; font-size: 18px;")
-
-        # Przyciski
-        self.start_button = QPushButton("Start")
-        self.apogee_button = QPushButton("Apogee")
-        self.landing_button = QPushButton("Descent")
-        self.calib_button = QPushButton("Calibration: Off")
-        self.engine_button = QPushButton("Engine: Off")
-        self.recovery_button = QPushButton("Recovery: Off")
-        self.signal_button = QPushButton("Signal: None")
-
-        buttons = [
-            self.start_button, self.apogee_button, self.landing_button,
-            self.calib_button, self.engine_button, self.recovery_button,
-            self.signal_button
-        ]
-
-        for btn in buttons:
-            btn.setStyleSheet("""
-                QPushButton {
-                    border: 1px solid white;
-                    border-radius: 3px;
-                    color: red;
-                    padding: 3px;
-                    min-width: 120px;
-                    margin: 1px;
-                    font-size: 12px;
-                }
-            """)
-
-
-        # Mapa 250x250px
+        # Mapa
         self.initialize_map()
         self.map_view = QWebEngineView()
-        self.map_view.setFixedSize(250, 250)
+        self.map_view.setSizePolicy(
+            QSizePolicy.Fixed,
+            QSizePolicy.Expanding  # Pionowe rozciąganie
+        )
         self.map_view.setStyleSheet("""
             QWebEngineView {
                 background-color: black;
@@ -136,11 +94,6 @@ class MainWindow(QMainWindow):
             }
         """)
         self.update_map_view()
-
-        central = QWidget()
-        main_layout = QGridLayout()
-        main_layout.setContentsMargins(5, 5, 5, 5)
-        main_layout.setSpacing(5)
 
         # Główny układ (QGridLayout)
         central = QWidget()
@@ -153,7 +106,8 @@ class MainWindow(QMainWindow):
         top_plots_row.setContentsMargins(0, 0, 0, 0)
         top_plots_row.setSpacing(5)
         top_plots_row.addWidget(self.alt_plot, 1)
-        top_plots_row.addWidget(self.velocity_plot, 1)
+        top_plots_row.addWidget(self.ver_velocity_plot, 1)
+        top_plots_row.addWidget(self.ver_accel_plot, 1)
 
         # Dolny wiersz - pitch i roll
         bottom_plots_row = QHBoxLayout()
@@ -161,87 +115,112 @@ class MainWindow(QMainWindow):
         bottom_plots_row.setSpacing(5)
         bottom_plots_row.addWidget(self.pitch_plot, 1)
         bottom_plots_row.addWidget(self.roll_plot, 1)
+        bottom_plots_row.addWidget(self.yaw_plot, 1)
 
         # Panel boczny
-        side_panel = self.create_side_panel()
+        lower_panel = self.create_lower_panel()
 
         # Ustawienie elementów w siatce
         main_layout.addLayout(top_plots_row, 0, 0)
         main_layout.addLayout(bottom_plots_row, 1, 0)
-        main_layout.addWidget(self.console, 2, 0, 1,
-                              2)
-        main_layout.addWidget(side_panel, 0, 1, 2,
-                              1)
+        main_layout.addWidget(lower_panel, 2, 0)
 
-        main_layout.setRowStretch(0,
-                                  4)
-        main_layout.setRowStretch(1,
-                                  4)
-        main_layout.setRowStretch(2,
-                                  1)
+        main_layout.setRowStretch(0,4)
+        main_layout.setRowStretch(1,4)
+        main_layout.setRowStretch(2, 1)
 
         # Proporcje kolumn (80% wykresy, 20% panel boczny)
-        main_layout.setColumnStretch(0, 4)
-        main_layout.setColumnStretch(1, 1)
+        main_layout.setColumnStretch(0, 1)
 
         central.setLayout(main_layout)
         self.setCentralWidget(central)
 
         self.serial.start_reading()
 
-    def create_side_panel(self):
-        """Tworzy panel boczny z mapą i przyciskami"""
+    def create_lower_panel(self):
+        """Tworzy dolny panel z danymi i mapą"""
         panel = QWidget()
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.setSpacing(5)
+        main_layout = QHBoxLayout()  # Główny układ poziomy (dwie kolumny)
+        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.setSpacing(10)
 
-        # Etykieta z danymi (nad mapą)
-        layout.addWidget(self.label_info,
-                         alignment=Qt.AlignCenter)
+        # Lewa kolumna - dane w 3 wierszach
+        data_column = QWidget()
+        data_layout = QVBoxLayout()
+        data_layout.setContentsMargins(5, 5, 5, 5)
+        data_layout.setSpacing(10)
 
-        # Mapa
-        layout.addWidget(self.map_view,
-                         alignment=Qt.AlignCenter)
+        # Pierwszy wiersz - Altitude, Velocity, Acceleration
+        row1 = QHBoxLayout()
+        self.altitude_label = QLabel(f"Altitude: {self.current_data['altitude']:.2f} m")
+        self.velocity_label = QLabel(f"Velocity: {self.current_data['ver_velocity']:.2f} m/s")
+        self.accel_label = QLabel(f"Acceleration: {self.current_data['ver_accel']:.2f} m/s²")
 
-        # Etykieta z pozycją (pod mapą)
-        layout.addWidget(self.label_pos,
-                         alignment=Qt.AlignCenter)
+        for label in [self.altitude_label, self.velocity_label, self.accel_label]:
+            label.setStyleSheet("color: white; font-size: 32px; font-weight: bold;")
+            row1.addWidget(label, alignment=Qt.AlignLeft)
 
-        # Przyciski w siatce
-        button_grid = QGridLayout()
-        button_grid.setContentsMargins(0, 0, 0, 0)
-        button_grid.setSpacing(3)
-        buttons = [
-            (self.start_button, 0, 0),
-            (self.apogee_button, 0, 1),
-            (self.landing_button, 1, 0),
-            (self.calib_button, 1, 1),
-            (self.engine_button, 2, 0),
-            (self.recovery_button, 2, 1),
-            (self.signal_button, 3, 0, 1, 2)
-        ]
+        # Drugi wiersz - Pitch, Roll, Yaw
+        row2 = QHBoxLayout()
+        self.pitch_label = QLabel(f"Pitch: {self.current_data['pitch']:.2f}°")
+        self.roll_label = QLabel(f"Roll: {self.current_data['roll']:.2f}°")
+        self.yaw_label = QLabel(f"Yaw: {self.current_data['yaw']:.2f}°")
 
-        for btn, row, col, *span in buttons:
-            if span:
-                button_grid.addWidget(btn, row, col, *span)
-            else:
-                button_grid.addWidget(btn, row, col)
+        for label in [self.pitch_label, self.roll_label, self.yaw_label]:
+            label.setStyleSheet("color: white; font-size: 32px; font-weight: bold;")
+            row2.addWidget(label, alignment=Qt.AlignLeft)
 
-        layout.addLayout(button_grid)
-        panel.setLayout(layout)
-        panel.setMinimumWidth(270)
-        panel.setMaximumWidth(300)
+        # Trzeci wiersz - Position
+        row3 = QHBoxLayout()
+        self.position_label = QLabel(
+            f"Pos: {self.current_data['latitude']:.6f}° N, {self.current_data['longitude']:.6f}° E")
+        self.position_label.setStyleSheet("color: white; font-size: 32px; font-weight: bold;")
+        row3.addWidget(self.position_label, alignment=Qt.AlignLeft)
+
+        # Dodanie wierszy do kolumny danych
+        data_layout.addLayout(row1)
+        data_layout.addSpacing(10)  # Dodatkowy odstęp po pierwszym wierszu
+        data_layout.addLayout(row2)
+        data_layout.addSpacing(10)  # Dodatkowy odstęp po drugim wierszu
+        data_layout.addLayout(row3)
+        data_layout.addStretch()  # Dodaje elastyczną przestrzeń na dole
+        data_column.setLayout(data_layout)
+
+        # Prawa kolumna - mapa
+        map_column = QWidget()
+        map_layout = QVBoxLayout()
+        map_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Ustawienie stałej szerokości mapy (możesz dostosować)
+        self.map_view.setFixedWidth(self.alt_plot.width()//2)
+        self.map_view.setFixedHeight(200)
+        map_layout.addWidget(self.map_view)
+        map_column.setLayout(map_layout)
+
+        # Podział przestrzeni - 60% dane, 40% mapa
+        main_layout.addWidget(data_column, 70)
+        main_layout.addWidget(map_column, 30)
+
+        panel.setLayout(main_layout)
+        panel.setMinimumHeight(200)
         return panel
 
 
     def initialize_map(self):
-        """Inicjalizuje mapę 250x250px"""
+        """Inicjalizuje mapę z dynamicznym rozmiarem"""
+        if hasattr(self, 'alt_plot') and self.alt_plot:
+            plot_width = self.alt_plot.width() or 400
+            map_width = max(plot_width - 15, 300)  # Nie mniej niż 300px
+        else:
+            map_width = 400
+
+        map_height = 190 # Stała wysokość 180
+
         self.map = folium.Map(
             location=[self.current_lat, self.current_lng],
             zoom_start=15,
-            width=250,
-            height=250,
+            width=map_width,
+            height=map_height,
             control_scale=True,
             tiles='OpenStreetMap'
         )
@@ -249,15 +228,46 @@ class MainWindow(QMainWindow):
         folium.Marker(
             [self.current_lat, self.current_lng],
             popup=f"LOTUS: {self.current_lat:.6f}, {self.current_lng:.6f}",
-            icon=folium.Icon(color="green", icon="flag",
-                             prefix='fa')
+            icon=folium.Icon(color="green", icon="flag", prefix='fa')
         ).add_to(self.map)
 
         self.map.save('map.html')
 
+    def resizeEvent(self, event):
+        """Obsługa zmiany rozmiaru okna"""
+        super().resizeEvent(event)
+        # Poczekaj chwilę na aktualizację geometrii
+        QtCore.QTimer.singleShot(50, self.adjust_map_width)
+
+    def adjust_map_width(self):
+        """Dostosowuje szerokość mapy do wykresów"""
+        if hasattr(self, 'map_view') and self.map_view and hasattr(self, 'alt_plot'):
+            # Pobierz rzeczywistą szerokość wykresu (po uwzględnieniu layoutu)
+            plot_width = self.alt_plot.size().width()
+            if plot_width > 100:  # Minimalna sensowna szerokość
+                self.map_view.setFixedWidth(plot_width - 15)  # 10px mniej niż wykres
+                self.update_map_size()
+
+    def update_map_size(self):
+        """Aktualizuje rozmiar mapy"""
+        if self.map_view:
+            # Pobierz aktualne rozmiary
+            new_width = self.map_view.width()
+            new_height = self.map_view.height()
+
+            # Tylko jeśli rozmiar się zmienił
+            if new_width > 0 and new_height > 0:
+                self.initialize_map()
+                self.update_map_view()
+
     def update_map_view(self):
-        """Aktualizuje widok mapy"""
-        self.map_view.setHtml(open('map.html').read())
+        """Aktualizuje widok mapy z uwzględnieniem skalowania"""
+        with open('map.html', 'r') as f:
+            html = f.read()
+            # Dodaj meta tag dla responsywności
+            html = html.replace('<head>',
+                                '<head><meta name="viewport" content="width=device-width, initial-scale=1.0">')
+            self.map_view.setHtml(html)
 
     def handle_processed_data(self, data): #TODO to należy zintegrować z metodą poniżej
         self.logger.debug(
@@ -281,18 +291,16 @@ class MainWindow(QMainWindow):
     def update_data(self):
         """Aktualizacja danych na interfejsie"""
         # Aktualizacja wykresów
-        self.alt_plot.update_plot(
-            self.current_data['altitude'])
-        self.velocity_plot.update_plot(
-            self.current_data['velocity'])
-        self.pitch_plot.update_plot(
-            self.current_data['pitch'])
-        self.roll_plot.update_plot(
-            self.current_data['roll'])
+        self.alt_plot.update_plot(self.current_data['altitude'])
+        self.ver_velocity_plot.update_plot(self.current_data['ver_velocity'])
+        self.ver_accel_plot.update_plot(self.current_data['ver_accel'])
+        self.pitch_plot.update_plot(self.current_data['pitch'])
+        self.roll_plot.update_plot(self.current_data['roll'])
+        self.yaw_plot.update_plot(self.current_data['yaw'])
 
         self.label_info.setText(
             f"Pitch: {self.current_data['pitch']:.2f}°, Roll: {self.current_data['roll']:.2f}°\n"
-            f"V: {self.current_data['velocity']:.2f} m/s, H: {self.current_data['altitude']:.2f} m"
+            f"V: {self.current_data['ver_velocity']:.2f} m/s, H: {self.current_data['altitude']:.2f} m"
         )
         self.label_pos.setText(
             f"LON:\t{self.current_data['longitude']:.6f}° N \nLAT:\t{self.current_data['latitude']:.6f}° E"
@@ -300,148 +308,14 @@ class MainWindow(QMainWindow):
 
         self.now_str = datetime.now().strftime("%H:%M:%S")
         msg = (
-            f"{self.current_data['velocity']};{self.current_data['altitude']};"
+            f"{self.current_data['ver_velocity']};{self.current_data['altitude']};"
             f"{self.current_data['pitch']};{self.current_data['roll']};"
             f"{self.current_data['status']};{self.current_data['latitude']};"
             f"{self.current_data['longitude']}"
         )
-        self.console.append(
-            f"{self.now_str} | LEN: {self.current_data['len']} bajtów | "
-            f"RSSI: {self.current_data['rssi']} dBm | "
-            f"SNR: {self.current_data['snr']} dB | msg: {msg}"
-        )
         self.logger.debug(f"Odebrano dane: {msg}")
 
         status = self.current_data['status']
-
-        # Calibration
-        if status & (1 << 0):
-            if not self.calib_detection:
-                self.calib_button.setStyleSheet(
-                    "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: green; padding: 5px;}"
-                )
-                self.calib_button.setText("Calibration: On")
-                self.console.append(f"{self.now_str} | CALIB ON")
-                self.logger.info("Detekcja kalibracji")
-                self.calib_detection = True
-        else:
-            if self.calib_detection:
-                self.calib_button.setStyleSheet(
-                    "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: red; padding: 5px;}"
-                )
-                self.calib_button.setText("Calibration: Off")
-                self.calib_detection = False
-
-        # Start
-        if status & (1 << 1):
-            if not self.start_detection:
-                self.start_button.setStyleSheet(
-                    "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: green; padding: 5px;}"
-                )
-                self.logger.info("Detekcja startu")
-                self.console.append(f"{self.now_str} | START DETECTION")
-                print("Detekcja startu")
-                self.start_detection = True
-        else:
-            if self.start_detection:
-                self.start_button.setStyleSheet(
-                    "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: red; padding: 5px;}"
-                )
-                self.start_detection = False
-
-        # Engine
-        if status & (1 << 2):
-            if not self.engine_detection:
-                self.engine_button.setStyleSheet(
-                    "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: green; padding: 5px;}"
-                )
-                self.engine_buttonn.setText("Engine: On")
-                self.console.append(f"{self.now_str} | ENGINE ON")
-                self.logger.info("Detekcja uruchomienia silników")
-                self.engine_detection = True
-        else:
-            if self.engine_detection:
-                self.engine_button.setStyleSheet(
-                    "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: red; padding: 5px;}"
-                )
-                self.engine_buttonn.setText("Engine: Off")
-                self.console.append(f"{self.now_str} | ENGINE OF")
-                self.engine_detection = False
-
-        # Apogee
-        if status & (1 << 3):
-            if not self.apogee_detection:
-                self.apogee_button.setStyleSheet(
-                    "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: green; padding: 5px;}"
-                )
-                self.console.append(f"{self.now_str} | APOGEE DETECTION")
-                self.logger.info("Detekcja apogeum")
-                self.apogee_detection = True
-        else:
-            if self.apogee_detection:
-                self.apogee_button.setStyleSheet(
-                    "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: red; padding: 5px;}"
-                )
-                self.apogee_detection = False
-
-        # Recovery
-        if status & (1 << 4):
-            if not self.recovery_detection:
-                self.recovery_button.setStyleSheet(
-                    "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: green; padding: 5px;}"
-                )
-                self.recovery_button.setText("Recovery: On")
-                self.console.append(f"{self.now_str} | RECOVERY DETECTION")
-                self.logger.info("Detekcja odzysku")
-                print("Detekcja odzysku")
-                self.recovery_detection = True
-        else:
-            if self.recovery_detection:
-                self.recovery_button.setStyleSheet(
-                    "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: red; padding: 5px;}"
-                )
-                self.recovery_button.setText("Recovery: Off")
-                self.recovery_detection = False
-
-        # Landing
-        if status & (1 << 5):
-            if not self.landing_detection:
-                self.landing_button.setStyleSheet(
-                    "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: green; padding: 5px;}"
-                )
-                self.console.append(f"{self.now_str} | DESCENT DETECTION")
-                self.logger.info("Detekcja lądowania")
-                print("Detekcja lądowania")
-                self.landing_detection = True
-        else:
-            if self.landing_detection:
-                self.landing_button.setStyleSheet(
-                    "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: red; padding: 5px;}"
-                )
-                self.landing_detection = False
-
-        snr_threshold = 5.0
-        rssi_threshold = -80.0
-        snr = self.current_data['snr']
-        rssi = self.current_data['rssi']
-
-        if snr >= snr_threshold and rssi >= rssi_threshold:
-            self.signal_quality = "Good"
-            self.signal_button.setStyleSheet(
-                "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: green; padding: 5px;}")
-        elif snr < snr_threshold and rssi < rssi_threshold:
-            self.signal_quality = "Weak"
-            self.signal_button.setStyleSheet(
-                "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: red; padding: 5px;}")
-        else:
-            self.signal_quality = "Average"
-            self.signal_button.setStyleSheet(
-                "QPushButton {border: 2px solid white; border-radius: 5px; background-color: black; color: yellow; padding: 5px;}")
-
-        self.signal_button.setText(
-            f"Signal: {self.signal_quality}")
-        self.logger.debug(
-            f"Jakość sygnału: {self.signal_quality} (SNR: {snr}, RSSI: {rssi})")
 
     def closeEvent(self, event):
         """Zamykanie aplikacji"""

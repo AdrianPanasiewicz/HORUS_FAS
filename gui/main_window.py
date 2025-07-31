@@ -13,6 +13,7 @@ from gui.live_plot import LivePlot
 from datetime import datetime
 from core.process_data import ProcessData
 from core.csv_handler import CsvHandler
+import random
 
 
 class MainWindow(QMainWindow):
@@ -72,12 +73,12 @@ class MainWindow(QMainWindow):
         self.processor.processed_data_ready.connect(self.handle_processed_data)
 
         # Wykresy
-        self.alt_plot = LivePlot(title="Altitude", color='b')
-        self.ver_velocity_plot = LivePlot(title="Ver Velocity", color='r')
-        self.ver_accel_plot = LivePlot(title="Ver Acceleration", color='c')
-        self.pitch_plot = LivePlot(title="Pitch", color='y')
-        self.roll_plot = LivePlot(title="Roll", color='g')
-        self.yaw_plot = LivePlot(title="Yaw", color='g')
+        self.alt_plot = LivePlot(title="Altitude", color='b', time_window=30, max_points=50000)
+        self.ver_velocity_plot = LivePlot(title="Ver Velocity", color='r', time_window=30, max_points=50000)
+        self.ver_accel_plot = LivePlot(title="Ver Acceleration", color='c', time_window=30, max_points=50000)
+        self.pitch_plot = LivePlot(title="Pitch", color='y', time_window=30, max_points=50000)
+        self.roll_plot = LivePlot(title="Roll", color='g', time_window=30, max_points=50000)
+        self.yaw_plot = LivePlot(title="Yaw", color='w', time_window=30, max_points=50000)
 
         # Mapa
         self.initialize_map()
@@ -137,6 +138,9 @@ class MainWindow(QMainWindow):
 
         self.serial.start_reading()
 
+        # Testing
+        QtCore.QTimer.singleShot(1000, lambda: self.start_random_test(30))
+
     def create_lower_panel(self):
         """Tworzy dolny panel z danymi i mapą"""
         panel = QWidget()
@@ -176,6 +180,10 @@ class MainWindow(QMainWindow):
             f"Pos: {self.current_data['latitude']:.6f}° N, {self.current_data['longitude']:.6f}° E")
         self.position_label.setStyleSheet("color: white; font-size: 32px; font-weight: bold;")
         row3.addWidget(self.position_label, alignment=Qt.AlignLeft)
+
+        #row3.addStretch()
+        #row3.addWidget(self.position_label, alignment=Qt.AlignCenter)
+        #row3.addStretch()
 
         # Dodanie wierszy do kolumny danych
         data_layout.addLayout(row1)
@@ -298,6 +306,15 @@ class MainWindow(QMainWindow):
         self.roll_plot.update_plot(self.current_data['roll'])
         self.yaw_plot.update_plot(self.current_data['yaw'])
 
+        self.altitude_label.setText(f"Altitude: {self.current_data['altitude']:.2f} m")
+        self.velocity_label.setText(f"Velocity: {self.current_data['ver_velocity']:.2f} m/s")
+        self.accel_label.setText(f"Acceleration: {self.current_data['ver_accel']:.2f} m/s²")
+        self.pitch_label.setText(f"Pitch: {self.current_data['pitch']:.2f}°")
+        self.roll_label.setText(f"Roll: {self.current_data['roll']:.2f}°")
+        self.yaw_label.setText(f"Yaw: {self.current_data['yaw']:.2f}°")
+        self.position_label.setText(f"Pos: {self.current_data['latitude']:.6f}° N, {self.current_data['longitude']:.6f}° E")
+
+        '''
         self.label_info.setText(
             f"Pitch: {self.current_data['pitch']:.2f}°, Roll: {self.current_data['roll']:.2f}°\n"
             f"V: {self.current_data['ver_velocity']:.2f} m/s, H: {self.current_data['altitude']:.2f} m"
@@ -305,6 +322,7 @@ class MainWindow(QMainWindow):
         self.label_pos.setText(
             f"LON:\t{self.current_data['longitude']:.6f}° N \nLAT:\t{self.current_data['latitude']:.6f}° E"
         )
+        '''
 
         self.now_str = datetime.now().strftime("%H:%M:%S")
         msg = (
@@ -317,8 +335,69 @@ class MainWindow(QMainWindow):
 
         status = self.current_data['status']
 
+    def start_random_test(self, duration=30):
+        """Rozpoczyna test z losowymi wartościami na wszystkich wykresach"""
+        # 1. Reset wszystkich wykresów
+        plots = [
+            self.alt_plot,
+            self.ver_velocity_plot,
+            self.ver_accel_plot,
+            self.pitch_plot,
+            self.roll_plot,
+            self.yaw_plot
+        ]
+
+        for plot in plots:
+            plot.reset_time()  # Reset czasu i danych
+
+        # 2. Inicjalizacja timera
+        if hasattr(self, 'test_timer') and self.test_timer:
+            self.test_timer.stop()  # Bezpieczne zatrzymanie istniejącego timera
+
+        self.test_timer = QtCore.QTimer()
+        self.test_timer.setTimerType(QtCore.Qt.PreciseTimer)  # Dokładniejszy timer
+        self.test_timer.timeout.connect(self._generate_test_data)
+
+        # 3. Ustawienie interwału (100ms = 0.1s)
+        self.test_timer.start(100)
+
+        # 4. Automatyczne zatrzymanie po zadanym czasie
+        QtCore.QTimer.singleShot(
+            duration * 1000,  # Konwersja na milisekundy
+            lambda: self.stop_random_test() or self.logger.info("Test zakończony")
+        )
+
+        self.logger.info(f"Rozpoczęto test na {duration} sekund")
+
+    def stop_random_test(self):
+        """Zatrzymuje test losowych wartości"""
+        if hasattr(self, 'test_timer') and self.test_timer:
+            self.test_timer.stop()
+
+    def _generate_test_data(self):
+        """Generuje losowe dane testowe"""
+        test_data = {
+            'ver_velocity': random.uniform(-10, 10),
+            'ver_accel': random.uniform(-2, 2),
+            'altitude': random.uniform(0, 1000),
+            'pitch': random.uniform(-90, 90),
+            'roll': random.uniform(-90, 90),
+            'yaw': random.uniform(0, 360),
+            'status': random.randint(0, 3),
+            'latitude': 52.2549 + random.uniform(-0.01, 0.01),
+            'longitude': 20.9004 + random.uniform(-0.01, 0.01),
+            'len': 0,
+            'rssi': random.randint(-120, -50),
+            'snr': random.uniform(-10, 10)
+        }
+        self.handle_processed_data(test_data)
+        self.current_data = test_data  # Zaktualizuj current_data
+        self.update_data()  # Wywołaj aktualizację interfejsu
+
     def closeEvent(self, event):
         """Zamykanie aplikacji"""
         self.serial.stop_reading()
         self.csv_handler.close_file()
+        if hasattr(self, 'test_timer') and self.test_timer:
+            self.test_timer.stop()
         super().closeEvent(event)

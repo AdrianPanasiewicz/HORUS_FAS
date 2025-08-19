@@ -8,6 +8,8 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
 from PyQt5 import QtCore
 import folium
+
+from core.network_handler import NetworkTransmitter
 from core.serial_reader import SerialReader
 from gui.live_plot import LivePlot
 from datetime import datetime
@@ -17,8 +19,10 @@ import random
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, config):
+    def __init__(self, config, transmitter):
         super().__init__()
+        self.transmitter = transmitter
+
         self.logger = logging.getLogger('HORUS_FAS.main_window')
         self.logger.info("Inicjalizacja głównego okna")
 
@@ -277,24 +281,43 @@ class MainWindow(QMainWindow):
                                 '<head><meta name="viewport" content="width=device-width, initial-scale=1.0">')
             self.map_view.setHtml(html)
 
-    def handle_processed_data(self, data): #TODO to należy zintegrować z metodą poniżej
-        self.logger.debug(
-            f"Odebrano dane przetworzone: {data}")
-        self.current_data = data
+    def handle_processed_data(self, data):
         try:
+            # 1. Aktualizacja bieżących danych
+            self.current_data = data
+
+            # 2. Aktualizacja GUI
             self.update_data()
+
+            # 3. Zapis do CSV
             self.csv_handler.write_row(data)
 
-            if data['latitude'] != 0.0 and data[
-                'longitude'] != 0.0:
-                self.current_lat = data['latitude']
-                self.current_lng = data['longitude']
-                self.initialize_map()
-                self.update_map_view()
+            print(f"DEBUG: Przetworzono dane do wysłania: {data}")
+
+            # 4. Wysyłanie do Stacji 2
+            transmit_data = {
+                'timestamp': datetime.now().isoformat(),
+                'telemetry': {
+                    'velocity': data.get('ver_velocity', 0),
+                    'altitude': data.get('altitude', 0),
+                    'latitude': data.get('latitude', 0),
+                    'longitude': data.get('longitude', 0),
+                    'pitch': data.get('pitch', 0),
+                    'roll': data.get('roll', 0),
+                    'yaw': data.get('yaw', 0)
+                },
+                'transmission': {
+                    'rssi': data.get('rssi', 0),
+                    'snr': data.get('snr', 0)
+                }
+            }
+
+            print(f"DEBUG: Dane przed wysłaniem: {transmit_data}")
+
+            self.transmitter.send_data(transmit_data)
 
         except Exception as e:
-            self.logger.exception(
-                f"Błąd w update_data(): {e}")
+            self.logger.error(f"Błąd w handle_processed_data: {e}")
 
     def update_data(self):
         """Aktualizacja danych na interfejsie"""
@@ -359,7 +382,7 @@ class MainWindow(QMainWindow):
         self.test_timer.timeout.connect(self._generate_test_data)
 
         # 3. Ustawienie interwału (100ms = 0.1s)
-        self.test_timer.start(100)
+        self.test_timer.start(1000)
 
         # 4. Automatyczne zatrzymanie po zadanym czasie
         QtCore.QTimer.singleShot(

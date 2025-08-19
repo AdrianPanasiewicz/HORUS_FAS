@@ -1,3 +1,5 @@
+import datetime
+
 import serial
 import time
 import re
@@ -10,13 +12,14 @@ class SerialReader(QObject):
     telemetry_received = pyqtSignal(dict)
     transmission_info_received = pyqtSignal(dict)
 
-    def __init__(self, port="COM7", baudrate=9600):
+    def __init__(self, port="COM7", baudrate=9600, transmitter=None):
         super().__init__()
         self.logger = logging.getLogger('HORUS_FAS.serial_reader')
         self.port = port
         self.baudrate = baudrate
         self.running = False
         self.thread = None
+        self.transmitter = transmitter
 
         try:
             self.ser = serial.Serial(self.port, self.baudrate, timeout=0.5)
@@ -116,6 +119,9 @@ class SerialReader(QObject):
                         f"LEN={transmission['len']}, "
                         f"RSSI={transmission['rssi']}, "
                         f"SNR={transmission['snr']}")
+
+                    if self.transmitter:
+                        self.transmitter.last_transmission = transmission
 
                     self.transmission_info_received.emit(transmission)
                 except Exception as e:

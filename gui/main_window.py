@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QWidget, QSizePolicy,
                              QHBoxLayout, QLabel,
                              QGridLayout, QVBoxLayout)
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5 import QtCore
 import folium
@@ -54,10 +54,10 @@ class MainWindow(QMainWindow):
             f"CSV handler zainicjalizowany w sesji: {self.csv_handler.session_dir}")
 
         self.setWindowTitle("HORUS_FAS")
-        self.setStyleSheet("""
-            background-color: black; 
-            color: white;
-        """)
+        # self.setStyleSheet("""
+        #     background-color: black;
+        #     color: white;
+        # """)
         self.setWindowIcon(QIcon(r'gui/white_icon.png'))
         self.setStyleSheet(
             open(r'gui/darkstyle.qss').read())
@@ -88,16 +88,16 @@ class MainWindow(QMainWindow):
         self.initialize_map()
         self.map_view = QWebEngineView()
         self.map_view.setSizePolicy(
-            QSizePolicy.Fixed,
+            QSizePolicy.Expanding,
             QSizePolicy.Expanding  # Pionowe rozciąganie
         )
-        self.map_view.setStyleSheet("""
-            QWebEngineView {
-                background-color: black;
-                border: 1px solid #444;
-                border-radius: 3px;
-            }
-        """)
+        # self.map_view.setStyleSheet("""
+        #     QWebEngineView {
+        #         background-color: black;
+        #         border: 1px solid #444;
+        #         border-radius: 3px;
+        #     }
+        # """)
         self.update_map_view()
 
         # Główny układ (QGridLayout)
@@ -106,36 +106,29 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(5, 5, 5, 5)
         main_layout.setSpacing(5)
 
-        # Górny wiersz - altitude i velocity
-        top_plots_row = QHBoxLayout()
-        top_plots_row.setContentsMargins(0, 0, 0, 0)
-        top_plots_row.setSpacing(5)
-        top_plots_row.addWidget(self.alt_plot, 1)
-        top_plots_row.addWidget(self.ver_velocity_plot, 1)
-        top_plots_row.addWidget(self.ver_accel_plot, 1)
+        # Lewa kolumna - altitude i velocity
+        left_plots_column = QVBoxLayout()
+        left_plots_column.setContentsMargins(0, 0, 0, 0)
+        left_plots_column.setSpacing(5)
+        left_plots_column.addWidget(self.alt_plot, 1)
+        left_plots_column.addWidget(self.ver_velocity_plot, 1)
+        left_plots_column.addWidget(self.ver_accel_plot, 1)
 
-        # Dolny wiersz - pitch i roll
-        bottom_plots_row = QHBoxLayout()
-        bottom_plots_row.setContentsMargins(0, 0, 0, 0)
-        bottom_plots_row.setSpacing(5)
-        bottom_plots_row.addWidget(self.pitch_plot, 1)
-        bottom_plots_row.addWidget(self.roll_plot, 1)
-        bottom_plots_row.addWidget(self.yaw_plot, 1)
+        # Środkowa kolumna - pitch i roll
+        middle_plots_column = QVBoxLayout()
+        middle_plots_column.setContentsMargins(0, 0, 0, 0)
+        middle_plots_column.setSpacing(5)
+        middle_plots_column.addWidget(self.pitch_plot, 1)
+        middle_plots_column.addWidget(self.roll_plot, 1)
+        middle_plots_column.addWidget(self.yaw_plot, 1)
 
         # Panel boczny
-        lower_panel = self.create_lower_panel()
+        right_panel = self.create_right_panel()
 
         # Ustawienie elementów w siatce
-        main_layout.addLayout(top_plots_row, 0, 0)
-        main_layout.addLayout(bottom_plots_row, 1, 0)
-        main_layout.addWidget(lower_panel, 2, 0)
-
-        main_layout.setRowStretch(0,4)
-        main_layout.setRowStretch(1,4)
-        main_layout.setRowStretch(2, 1)
-
-        # Proporcje kolumn (80% wykresy, 20% panel boczny)
-        main_layout.setColumnStretch(0, 1)
+        main_layout.addLayout(left_plots_column, 0, 0)
+        main_layout.addLayout(middle_plots_column, 0, 1)
+        main_layout.addWidget(right_panel, 0, 2)
 
         central.setLayout(main_layout)
         self.setCentralWidget(central)
@@ -145,74 +138,52 @@ class MainWindow(QMainWindow):
         # Testing
         QtCore.QTimer.singleShot(1000, lambda: self.start_random_test(30))
 
-    def create_lower_panel(self):
+        self.setup_status_bar()
+
+    def create_right_panel(self):
         """Tworzy dolny panel z danymi i mapą"""
         panel = QWidget()
-        main_layout = QHBoxLayout()  # Główny układ poziomy (dwie kolumny)
+        main_layout = QVBoxLayout()  # Główny układ poziomy (dwie kolumny)
         main_layout.setContentsMargins(5, 5, 5, 5)
         main_layout.setSpacing(10)
 
-        # Lewa kolumna - dane w 3 wierszach
-        data_column = QWidget()
+        data_labels = QWidget()
         data_layout = QVBoxLayout()
         data_layout.setContentsMargins(5, 5, 5, 5)
         data_layout.setSpacing(10)
 
-        # Pierwszy wiersz - Altitude, Velocity, Acceleration
-        row1 = QHBoxLayout()
-        self.altitude_label = QLabel(f"Altitude: {self.current_data['altitude']:.2f} m")
-        self.velocity_label = QLabel(f"Velocity: {self.current_data['ver_velocity']:.2f} m/s")
-        self.accel_label = QLabel(f"Acceleration: {self.current_data['ver_accel']:.2f} m/s²")
-
-        for label in [self.altitude_label, self.velocity_label, self.accel_label]:
-            label.setStyleSheet("color: white; font-size: 32px; font-weight: bold;")
-            row1.addWidget(label, alignment=Qt.AlignLeft)
-
-        # Drugi wiersz - Pitch, Roll, Yaw
-        row2 = QHBoxLayout()
-        self.pitch_label = QLabel(f"Pitch: {self.current_data['pitch']:.2f}°")
-        self.roll_label = QLabel(f"Roll: {self.current_data['roll']:.2f}°")
-        self.yaw_label = QLabel(f"Yaw: {self.current_data['yaw']:.2f}°")
-
-        for label in [self.pitch_label, self.roll_label, self.yaw_label]:
-            label.setStyleSheet("color: white; font-size: 32px; font-weight: bold;")
-            row2.addWidget(label, alignment=Qt.AlignLeft)
-
-        # Trzeci wiersz - Position
-        row3 = QHBoxLayout()
-        self.position_label = QLabel(
-            f"Pos: {self.current_data['latitude']:.6f}° N, {self.current_data['longitude']:.6f}° E")
-        self.position_label.setStyleSheet("color: white; font-size: 32px; font-weight: bold;")
-        row3.addWidget(self.position_label, alignment=Qt.AlignLeft)
-
-        #row3.addStretch()
-        #row3.addWidget(self.position_label, alignment=Qt.AlignCenter)
-        #row3.addStretch()
-
-        # Dodanie wierszy do kolumny danych
-        data_layout.addLayout(row1)
-        data_layout.addSpacing(10)  # Dodatkowy odstęp po pierwszym wierszu
-        data_layout.addLayout(row2)
-        data_layout.addSpacing(10)  # Dodatkowy odstęp po drugim wierszu
-        data_layout.addLayout(row3)
-        data_layout.addStretch()  # Dodaje elastyczną przestrzeń na dole
-        data_column.setLayout(data_layout)
-
         # Prawa kolumna - mapa
-        map_column = QWidget()
+        map_widget = QWidget()
         map_layout = QVBoxLayout()
         map_layout.setContentsMargins(0, 0, 0, 0)
 
         # Ustawienie stałej szerokości mapy (możesz dostosować)
         self.map_view.setFixedWidth(self.alt_plot.width()//2)
-        self.map_view.setFixedHeight(200)
+        # self.map_view.setFixedHeight(200)
         map_layout.addWidget(self.map_view)
-        map_column.setLayout(map_layout)
+        map_widget.setLayout(map_layout)
 
-        # Podział przestrzeni - 60% dane, 40% mapa
-        main_layout.addWidget(data_column, 70)
-        main_layout.addWidget(map_column, 30)
+        row = QVBoxLayout()
+        self.altitude_label = QLabel(f"Altitude: {self.current_data['altitude']:.2f} m")
+        self.velocity_label = QLabel(f"Velocity: {self.current_data['ver_velocity']:.2f} m/s")
+        self.accel_label = QLabel(f"Acceleration: {self.current_data['ver_accel']:.2f} m/s²")
+        self.pitch_label = QLabel(f"Pitch: {self.current_data['pitch']:.2f}°")
+        self.roll_label = QLabel(f"Roll: {self.current_data['roll']:.2f}°")
+        self.yaw_label = QLabel(f"Yaw: {self.current_data['yaw']:.2f}°")
+        self.position_label = QLabel(f"Pos: {self.current_data['latitude']:.6f}° N, {self.current_data['longitude']:.6f}° E")
 
+        for label in [self.altitude_label, self.velocity_label, self.accel_label, self.pitch_label,
+                      self.roll_label, self.yaw_label, self.position_label]:
+            label.setStyleSheet("color: white; font-size: 16px; font-weight: bold;")
+            row.addWidget(label, alignment=Qt.AlignLeft)
+
+        # Dodanie wierszy do kolumny danych
+        data_layout.addLayout(row)
+        # data_layout.addSpacing(10)  # Dodatkowy odstęp po pierwszym wierszu
+        data_labels.setLayout(data_layout)
+
+        main_layout.addWidget(map_widget, 30)
+        main_layout.addWidget(data_labels, 70)
         panel.setLayout(main_layout)
         panel.setMinimumHeight(200)
         return panel
@@ -223,44 +194,54 @@ class MainWindow(QMainWindow):
         self.status_logo.setFixedSize(24, 24)
         self.status_logo.setScaledContents(True)
         logo_pixmap = QPixmap(r"gui/resources/black_icon_without_background.png").scaled(30, 30)
+        self.status_logo.setStyleSheet("background: transparent;")
         self.status_logo.setPixmap(logo_pixmap)
         self.statusBar().addWidget(self.status_logo)
 
         current_time = datetime.now().strftime("%H:%M:%S")
         self.status_packet_label = QLabel(f"Last received packet: {current_time} s")
-        self.status_packet_label.setStyleSheet("font-size: 14px;")
+        self.status_packet_label.setStyleSheet("background: transparent; font-size: 14px;")
         self.statusBar().addWidget(self.status_packet_label)
 
-        self.statusBar().addWidget(QLabel(), 1)
+        spacer1 = QLabel()
+        spacer1.setStyleSheet("background: transparent;")
+        self.statusBar().addWidget(spacer1, 1)
 
-        self.status_title_label = QLabel("HORUS Communication & System Status Station  \t\t\t")
-        self.status_title_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        self.status_title_label = QLabel("HORUS Flight Analysis Station  \t\t\t")
+        self.status_title_label.setStyleSheet("background: transparent; font-size: 14px; font-weight: bold;")
         self.statusBar().addWidget(self.status_title_label)
 
-        self.statusBar().addWidget(QLabel(), 1)
+        spacer2 = QLabel()
+        spacer2.setStyleSheet("background: transparent;")
+        self.statusBar().addWidget(spacer2, 1)
 
         self.heartbeat_placeholder = QLabel("●")
-        self.heartbeat_placeholder.setStyleSheet("color: transparent; font-size: 14px;")
+        self.heartbeat_placeholder.setStyleSheet("background: transparent; color: transparent; font-size: 14px;")
         self.statusBar().addPermanentWidget(self.heartbeat_placeholder)
 
         self.setup_heartbeat()
 
+    def setup_heartbeat(self):
+        if not hasattr(self, 'heartbeat_timer'):
+            self.heartbeat_timer = QTimer()
+            self.heartbeat_timer.timeout.connect(self.blink_heartbeat)
+            self.heartbeat_state = True
+
+        self.heartbeat_active = True
+        self.heartbeat_timer.start(500)
+
+    def blink_heartbeat(self):
+        if hasattr(self, 'heartbeat_active') and self.heartbeat_active:
+            self.heartbeat_state = not self.heartbeat_state
+            color = "red" if self.heartbeat_state else "transparent"
+            self.heartbeat_placeholder.setStyleSheet(f"color: {color}; font-size: 14px;")
+
 
     def initialize_map(self):
         """Inicjalizuje mapę z dynamicznym rozmiarem"""
-        if hasattr(self, 'alt_plot') and self.alt_plot:
-            plot_width = self.alt_plot.width() or 400
-            map_width = max(plot_width - 15, 300)  # Nie mniej niż 300px
-        else:
-            map_width = 400
-
-        map_height = 190 # Stała wysokość 180
-
         self.map = folium.Map(
             location=[self.current_lat, self.current_lng],
             zoom_start=15,
-            width=map_width,
-            height=map_height,
             control_scale=True,
             tiles='OpenStreetMap'
         )
@@ -268,7 +249,7 @@ class MainWindow(QMainWindow):
         folium.Marker(
             [self.current_lat, self.current_lng],
             popup=f"LOTUS: {self.current_lat:.6f}, {self.current_lng:.6f}",
-            icon=folium.Icon(color="green", icon="flag", prefix='fa')
+            icon=folium.Icon(color="green", icon="flag", prefix='LT')
         ).add_to(self.map)
 
         self.map.save('map.html')

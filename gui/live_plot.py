@@ -2,7 +2,7 @@ import logging
 import time
 import pyqtgraph as pg
 from collections import deque
-
+from pyqtgraph.exporters import ImageExporter, SVGExporter
 pg.setConfigOptions(useOpenGL=True)
 from PyQt5.QtWidgets import QWidget, QVBoxLayout
 from PyQt5.QtGui import QColor
@@ -52,3 +52,13 @@ class LivePlot(QWidget):
             self.plot_widget.setXRange(current_time - self.time_window, current_time)
 
         self.curve.setData(list(self.timestamps), list(self.data))
+
+    def export_to_png(self, filename):
+        exporter = ImageExporter(self.plot_widget.plotItem)
+        exporter.parameters()['width'] = 1920
+        exporter.export(filename)
+
+    def export_to_svg(self, filename):
+        exporter = SVGExporter(self.plot_widget.plotItem)
+        exporter.export(filename)
+

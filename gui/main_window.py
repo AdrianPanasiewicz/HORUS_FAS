@@ -289,51 +289,51 @@ class MainWindow(QMainWindow):
         self.file_menu = self.menu.addMenu("File")
         self.view_menu = self.menu.addMenu("View")
         self.theme_menu = self.view_menu.addMenu("Themes")
-        self.timespan_menu = self.view_menu.addMenu("Timespan")
-        self.tools_menu = self.menu.addMenu("Tools")
-        self.test_menu = self.menu.addMenu("Test")
+        # self.timespan_menu = self.view_menu.addMenu("Timespan")
+        # self.tools_menu = self.menu.addMenu("Tools")
+        # self.test_menu = self.menu.addMenu("Test")
         self.help_menu = self.menu.addMenu("Help")
 
         self.file_menu.addAction("Exit", self.close)
         self.file_menu.addAction("Open Session Directory", self.open_session_directory)
         self.file_menu.addAction("Show Session Path", self.show_session_directory_path)
         self.file_menu.addSeparator()
-        # self.file_menu.addAction("Export Plots as PNG", lambda: self.export_plots("png"))
-        # self.file_menu.addAction("Export Plots as SVG", lambda: self.export_plots("svg"))
+        self.file_menu.addAction("Export Plots as PNG", lambda: self.export_plots("png"))
+        self.file_menu.addAction("Export Plots as SVG", lambda: self.export_plots("svg"))
 
         self.view_menu.addAction("Toggle Fullscreen", self.toggle_fullscreen)
 
         self.status_bar_action = self.view_menu.addAction("Status Bar")
         self.status_bar_action.setCheckable(True)
         self.status_bar_action.setChecked(True)
-        # self.status_bar_action.triggered.connect(self.toggle_status_bar)
+        self.status_bar_action.triggered.connect(self.toggle_status_bar)
 
         self.heartbeat_action = self.view_menu.addAction("Heartbeat")
         self.heartbeat_action.setCheckable(True)
         self.heartbeat_action.setChecked(True)
-        # self.heartbeat_action.triggered.connect(self.toggle_heartbeat)
+        self.heartbeat_action.triggered.connect(self.toggle_heartbeat)
 
         self.view_menu.addSeparator()
 
-        self.crosshair_action = self.view_menu.addAction("Crosshair")
-        self.crosshair_action.setCheckable(True)
-        self.crosshair_action.setChecked(False)
-        # self.crosshair_action.triggered.connect(self.toggle_crosshairs)
-
-        self.auto_zoom_action = self.view_menu.addAction("Auto-Zoom")
-        self.auto_zoom_action.setCheckable(True)
-        self.auto_zoom_action.setChecked(True)
-        # self.auto_zoom_action.triggered.connect(self.toggle_auto_zoom)
-
-        self.data_markers_action = self.view_menu.addAction("Data Markers")
-        self.data_markers_action.setCheckable(True)
-        self.data_markers_action.setChecked(True)
-        # self.data_markers_action.triggered.connect(self.toggle_data_markers)
-
-        self.grid_action = self.view_menu.addAction("Grid")
-        self.grid_action.setCheckable(True)
-        self.grid_action.setChecked(True)
-        # self.grid_action.triggered.connect(self.toggle_plot_grid)
+        # self.crosshair_action = self.view_menu.addAction("Crosshair")
+        # self.crosshair_action.setCheckable(True)
+        # self.crosshair_action.setChecked(False)
+        # # self.crosshair_action.triggered.connect(self.toggle_crosshairs)
+        #
+        # self.auto_zoom_action = self.view_menu.addAction("Auto-Zoom")
+        # self.auto_zoom_action.setCheckable(True)
+        # self.auto_zoom_action.setChecked(True)
+        # # self.auto_zoom_action.triggered.connect(self.toggle_auto_zoom)
+        #
+        # self.data_markers_action = self.view_menu.addAction("Data Markers")
+        # self.data_markers_action.setCheckable(True)
+        # self.data_markers_action.setChecked(True)
+        # # self.data_markers_action.triggered.connect(self.toggle_data_markers)
+        #
+        # self.grid_action = self.view_menu.addAction("Grid")
+        # self.grid_action.setCheckable(True)
+        # self.grid_action.setChecked(True)
+        # # self.grid_action.triggered.connect(self.toggle_plot_grid)
 
         # self.view_menu.addSeparator()
         # self.view_menu.addAction("Clear Plots", self.clear_plots)
@@ -356,12 +356,12 @@ class MainWindow(QMainWindow):
             "Uniform Dark": "unform_dark.qss"
         }
 
-        # self.theme_actions = {}
-        # for theme_name, theme_file in self.themes.items():
-        #     action = self.theme_menu.addAction(theme_name)
-        #     action.triggered.connect(lambda _, t=theme_file: self.apply_theme(t))
-        #     self.theme_actions[theme_name] = action
-        #
+        self.theme_actions = {}
+        for theme_name, theme_file in self.themes.items():
+            action = self.theme_menu.addAction(theme_name)
+            action.triggered.connect(lambda _, t=theme_file: self.apply_theme(t))
+            self.theme_actions[theme_name] = action
+
         # self.timespan_menu.addAction("30 seconds", lambda: self.change_plot_timespans(30))
         # self.timespan_menu.addAction("60 seconds", lambda: self.change_plot_timespans(60))
         # self.timespan_menu.addAction("90 seconds", lambda: self.change_plot_timespans(90))
@@ -392,6 +392,53 @@ class MainWindow(QMainWindow):
 
         # self.plot_speed_actions["Normal (500 ms)"].setChecked(True)
         # self.plot_sim_interval = 500
+
+    def apply_theme(self, theme_file):
+        try:
+            theme_path = os.path.join("gui", "resources", "themes", theme_file)
+            with open(theme_path, "r") as file:
+                self.setStyleSheet(file.read())
+            self.logger.info(f"Theme changed to: {theme_file}")
+        except Exception as e:
+            self.logger.error(f"Error loading theme {theme_file}: {str(e)}")
+
+    def toggle_status_bar(self):
+        state = self.status_bar_action.isChecked()
+        if state:
+            self.statusBar().show()
+        else:
+            self.statusBar().hide()
+        self.status_bar_visible = state
+
+        current_time = datetime.now().strftime("%H:%M:%S")
+        status = "ON" if state else "OFF"
+        self.logger.info(f"Status bar toggled to {status}")
+
+    def export_plots(self, format):
+        try:
+            session_dir = self.csv_handler.session_dir
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+            plots = {
+                "altitude": self.alt_plot,
+                "vertical_velocity": self.ver_velocity_plot,
+                "vertical_acceleration": self.ver_accel_plot,
+                "pitch_plot": self.pitch_plot,
+                "roll_plot": self.roll_plot,
+                "yaw_plot": self.yaw_plot
+            }
+
+            for name, plot in plots.items():
+                filename = os.path.join(session_dir, f"{name}_plot_{timestamp}.{format}")
+                if format == "png":
+                    plot.export_to_png(filename)
+                elif format == "svg":
+                    plot.export_to_svg(filename)
+
+            self.logger.info(f"Exported plots as {format.upper()} files")
+        except Exception as e:
+            self.logger.error(f"Error exporting plots: {str(e)}")
+            QMessageBox.critical(self, "Export Error", f"Failed to export plots: {str(e)}")
 
     def update_map_view(self):
         """Aktualizuje widok mapy z uwzględnieniem skalowania"""
@@ -531,8 +578,8 @@ class MainWindow(QMainWindow):
 
         current_time = datetime.now().strftime("%H:%M:%S")
         status = "ON" if state else "OFF"
-        self.terminal_output.append(
-            f">{current_time}: <span style='color: lightblue;'>Heartbeat turned {status}</span>")
+        # self.terminal_output.append(
+        #     f">{current_time}: <span style='color: lightblue;'>Heartbeat turned {status}</span>")
         self.logger.info(f"Heartbeat toggled to {status}")
 
     def update_data(self):

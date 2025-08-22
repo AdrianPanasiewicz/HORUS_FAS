@@ -28,7 +28,7 @@ def main():
     app = QApplication(sys.argv)
 
     # DODANE: Inicjalizacja NetworkTransmitter
-    transmitter = NetworkTransmitter(host='192.168.0.66', port=65432)
+    transmitter = NetworkTransmitter(host='192.168.236.1', port=65432) # Trzeba zobaczyć, jaki jest przydzielony ip network adaptera
     logger.info("NetworkTransmitter zainicjalizowany")
 
     transmitter.connect()

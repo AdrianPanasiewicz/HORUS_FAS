@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QHBoxLayout, QLabel,
                              QGridLayout, QVBoxLayout)
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5 import QtCore
 import folium
 
@@ -216,6 +216,34 @@ class MainWindow(QMainWindow):
         panel.setLayout(main_layout)
         panel.setMinimumHeight(200)
         return panel
+
+    def setup_status_bar(self):
+        self.status_bar_visible = True
+        self.status_logo = QLabel()
+        self.status_logo.setFixedSize(24, 24)
+        self.status_logo.setScaledContents(True)
+        logo_pixmap = QPixmap(r"gui/resources/black_icon_without_background.png").scaled(30, 30)
+        self.status_logo.setPixmap(logo_pixmap)
+        self.statusBar().addWidget(self.status_logo)
+
+        current_time = datetime.now().strftime("%H:%M:%S")
+        self.status_packet_label = QLabel(f"Last received packet: {current_time} s")
+        self.status_packet_label.setStyleSheet("font-size: 14px;")
+        self.statusBar().addWidget(self.status_packet_label)
+
+        self.statusBar().addWidget(QLabel(), 1)
+
+        self.status_title_label = QLabel("HORUS Communication & System Status Station  \t\t\t")
+        self.status_title_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        self.statusBar().addWidget(self.status_title_label)
+
+        self.statusBar().addWidget(QLabel(), 1)
+
+        self.heartbeat_placeholder = QLabel("●")
+        self.heartbeat_placeholder.setStyleSheet("color: transparent; font-size: 14px;")
+        self.statusBar().addPermanentWidget(self.heartbeat_placeholder)
+
+        self.setup_heartbeat()
 
 
     def initialize_map(self):

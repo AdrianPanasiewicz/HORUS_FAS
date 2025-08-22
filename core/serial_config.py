@@ -42,7 +42,7 @@ class SerialConfigDialog(QDialog):
             QPushButton:hover { background-color: #3d566e; }
             QPushButton:disabled { background-color: #2c3e50; color: #7f8c8d; }
         """)
-        self.setWindowIcon(QIcon(r'gui/white_icon.png'))
+        self.setWindowIcon(QIcon(r'gui/resources/white_icon.png'))
 
         self.port_name = ""
         self.baud_rate = 9600

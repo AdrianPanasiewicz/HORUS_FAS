@@ -1,14 +1,16 @@
+import os
+import platform
+import subprocess
 import logging
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWidgets import (QMainWindow,
                              QWidget, QSizePolicy,
                              QHBoxLayout, QLabel,
-                             QGridLayout, QVBoxLayout)
+                             QGridLayout, QVBoxLayout, QMessageBox)
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5 import QtCore
 import folium
-
 from core.network_handler import NetworkTransmitter
 from core.serial_reader import SerialReader
 from gui.live_plot import LivePlot
@@ -60,7 +62,7 @@ class MainWindow(QMainWindow):
         # """)
         self.setWindowIcon(QIcon(r'gui/white_icon.png'))
         self.setStyleSheet(
-            open(r'gui/darkstyle.qss').read())
+            open(r'gui/resources/themes/dark_blue.qss').read())
 
         self.serial = SerialReader(config['port'], config['baudrate'])
         self.logger.info(f"SerialReader zainicjalizowany na porcie {config['port']} z baudrate {config['baudrate']}")
@@ -139,6 +141,7 @@ class MainWindow(QMainWindow):
         QtCore.QTimer.singleShot(1000, lambda: self.start_random_test(30))
 
         self.setup_status_bar()
+        self.declare_menus()
 
     def create_right_panel(self):
         """Tworzy dolny panel z danymi i mapą"""
@@ -281,6 +284,115 @@ class MainWindow(QMainWindow):
                 self.initialize_map()
                 self.update_map_view()
 
+    def declare_menus(self):
+        self.menu = self.menuBar()
+        self.file_menu = self.menu.addMenu("File")
+        self.view_menu = self.menu.addMenu("View")
+        self.theme_menu = self.view_menu.addMenu("Themes")
+        self.timespan_menu = self.view_menu.addMenu("Timespan")
+        self.tools_menu = self.menu.addMenu("Tools")
+        self.test_menu = self.menu.addMenu("Test")
+        self.help_menu = self.menu.addMenu("Help")
+
+        self.file_menu.addAction("Exit", self.close)
+        self.file_menu.addAction("Open Session Directory", self.open_session_directory)
+        self.file_menu.addAction("Show Session Path", self.show_session_directory_path)
+        self.file_menu.addSeparator()
+        # self.file_menu.addAction("Export Plots as PNG", lambda: self.export_plots("png"))
+        # self.file_menu.addAction("Export Plots as SVG", lambda: self.export_plots("svg"))
+
+        self.view_menu.addAction("Toggle Fullscreen", self.toggle_fullscreen)
+
+        self.status_bar_action = self.view_menu.addAction("Status Bar")
+        self.status_bar_action.setCheckable(True)
+        self.status_bar_action.setChecked(True)
+        # self.status_bar_action.triggered.connect(self.toggle_status_bar)
+
+        self.heartbeat_action = self.view_menu.addAction("Heartbeat")
+        self.heartbeat_action.setCheckable(True)
+        self.heartbeat_action.setChecked(True)
+        # self.heartbeat_action.triggered.connect(self.toggle_heartbeat)
+
+        self.view_menu.addSeparator()
+
+        self.crosshair_action = self.view_menu.addAction("Crosshair")
+        self.crosshair_action.setCheckable(True)
+        self.crosshair_action.setChecked(False)
+        # self.crosshair_action.triggered.connect(self.toggle_crosshairs)
+
+        self.auto_zoom_action = self.view_menu.addAction("Auto-Zoom")
+        self.auto_zoom_action.setCheckable(True)
+        self.auto_zoom_action.setChecked(True)
+        # self.auto_zoom_action.triggered.connect(self.toggle_auto_zoom)
+
+        self.data_markers_action = self.view_menu.addAction("Data Markers")
+        self.data_markers_action.setCheckable(True)
+        self.data_markers_action.setChecked(True)
+        # self.data_markers_action.triggered.connect(self.toggle_data_markers)
+
+        self.grid_action = self.view_menu.addAction("Grid")
+        self.grid_action.setCheckable(True)
+        self.grid_action.setChecked(True)
+        # self.grid_action.triggered.connect(self.toggle_plot_grid)
+
+        # self.view_menu.addSeparator()
+        # self.view_menu.addAction("Clear Plots", self.clear_plots)
+        # self.view_menu.addAction("Clear All", self.clear_all)
+
+        self.help_menu.addAction("About application", self.show_about_app_dialog)
+        self.help_menu.addAction("About KNS LiK", self.show_about_kns_dialog)
+
+        # self.test_menu.addAction("Start Plot Simulation", self.start_plot_simulation)
+        # self.test_menu.addAction("Stop Plot Simulation", self.stop_plot_simulation)
+        # self.plot_speed_menu = self.test_menu.addMenu("Plot Simulation Speed")
+        # self.test_menu.addAction("Start Map Simulation", self.start_map_simulation)
+        # self.test_menu.addAction("Stop Map Simulation", self.stop_map_simulation)
+
+        self.themes = {
+            "Dark Blue": "dark_blue.qss",
+            "Gray": "gray.qss",
+            "Marble": "marble.qss",
+            "Slick Dark": "slick_dark.qss",
+            "Uniform Dark": "unform_dark.qss"
+        }
+
+        # self.theme_actions = {}
+        # for theme_name, theme_file in self.themes.items():
+        #     action = self.theme_menu.addAction(theme_name)
+        #     action.triggered.connect(lambda _, t=theme_file: self.apply_theme(t))
+        #     self.theme_actions[theme_name] = action
+        #
+        # self.timespan_menu.addAction("30 seconds", lambda: self.change_plot_timespans(30))
+        # self.timespan_menu.addAction("60 seconds", lambda: self.change_plot_timespans(60))
+        # self.timespan_menu.addAction("90 seconds", lambda: self.change_plot_timespans(90))
+        # self.timespan_menu.addAction("120 seconds", lambda: self.change_plot_timespans(120))
+        #
+        # serial_menu = self.tools_menu.addMenu("Serial Configuration")
+        # serial_menu.addAction("Scan Ports", self.scan_serial_ports)
+        # serial_menu.addAction("Change Baud Rate", self.change_baud_rate)
+        # serial_menu.addAction("Reconnect Serial", self.reconnect_serial)
+        # self.tools_menu.addAction("Configure Filters", self.configure_filters)
+        # self.tools_menu.addSeparator()
+        # self.tools_menu.addAction("Calculate Statistics", self.calculate_statistics)
+
+        # self.plot_speed_actions = {}
+        #
+        # speeds = {
+        #     "Fast (250 ms)": 250,
+        #     "Normal (500 ms)": 500,
+        #     "Slow (1000 ms)": 1000,
+        #     "Very Slow (2000 ms)": 2000,
+        # }
+        #
+        # for label, interval in speeds.items():
+        #     action = self.plot_speed_menu.addAction(label)
+        #     action.setCheckable(True)
+        #     action.triggered.connect(lambda checked, i=interval: self.set_plot_sim_speed(i))
+        #     self.plot_speed_actions[label] = action
+
+        # self.plot_speed_actions["Normal (500 ms)"].setChecked(True)
+        # self.plot_sim_interval = 500
+
     def update_map_view(self):
         """Aktualizuje widok mapy z uwzględnieniem skalowania"""
         with open('map.html', 'r') as f:
@@ -327,6 +439,101 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             self.logger.error(f"Błąd w handle_processed_data: {e}")
+
+    def show_about_app_dialog(self):
+        about_text = """
+        <div style="text-align: justify;">
+            <h2>HOURS Flight Analysis Station</h2>
+            <p><b>Version:</b> 0.1.0</p>
+            <p><b>Description:</b> The ground station is responsible for processing and displaying data regarding 
+            the flight of a sounding rocket. It is a subcomponent of a HOURS project, which is also as a part of a 
+            larger LOTUS ONE project Scientific Association of Aviation and Astronautics Students of MUT.</p>
+            <p><b>Authors:</b> Adrian Panasiewicz, Filip Sudak</p>
+            <p><b>Copyright:</b> © 2025 KNS LiK </p>
+        </div>
+        """
+
+        QMessageBox.about(self, "About HORUS-CSS", about_text)
+
+    def show_about_kns_dialog(self):
+        about_text = """
+        <div style="text-align: justify;">
+            <h2>Scientific Association of Aviation and Astronautics Students of MUT</h2>
+            <p><b>Description:</b> The Scientific Circle of Aviation and Astronautics (KNS) brings together the best 
+            civilian and military students studying Aviation and Astronautics, as well as students from other fields 
+            present at the Faculty of Mechatronics, Armament, and Aviation, who deepen their knowledge in collaboration 
+            with university staff.</p>
+            <p>The main objectives of the Scientific Circle of Aviation and Astronautics Students are:</p>
+            <ul>
+                <li>Developing engineering skills in designing and building UAVs and other flying structures;</li>
+                <li>Fostering students' interests in building and developing UAVs, model rockets, and topics related to 
+                aviation technologies;</li>
+                <li>Enhancing skills in using market-available software related to engineering work;</li>
+                <li>Developing soft skills in project management, teamwork, and team communication.</li>
+            </ul>
+            The Circle plans to develop the existing skills of its members, improve their soft and technical 
+            competencies, and, above all, undertake projects characterized by a higher level of complexity and 
+            advanced technical and technological sophistication.
+        </div>
+        """
+        QMessageBox.about(self, "About KNS LiK", about_text)
+
+    def toggle_fullscreen(self):
+        if self.isFullScreen():
+            self.showNormal()
+        else:
+            self.showFullScreen()
+
+    def open_session_directory(self):
+
+        session_path = self.csv_handler.session_dir
+
+        if not os.path.exists(session_path):
+            QMessageBox.warning(
+                self,
+                "Directory Not Found",
+                f"Session directory not found:\n{session_path}"
+            )
+            return
+
+        try:
+            if platform.system() == "Windows":
+                os.startfile(session_path)
+            elif platform.system() == "Darwin":
+                subprocess.Popen(["open", session_path])
+            else:
+                subprocess.Popen(["xdg-open", session_path])
+        except Exception as e:
+            self.logger.error(f"Error opening session directory: {str(e)}")
+            QMessageBox.critical(
+                self,
+                "Error Opening Directory",
+                f"Could not open session directory:\n{str(e)}"
+            )
+
+    def show_session_directory_path(self):
+        session_path = self.csv_handler.session_dir
+        QMessageBox.information(
+            self,
+            "Session Directory Path",
+            f"Current session files are stored at:\n{session_path}"
+        )
+
+    def toggle_heartbeat(self):
+        state = self.heartbeat_action.isChecked()
+        if state:
+            self.heartbeat_timer.start(500)
+            self.heartbeat_active = True
+        else:
+            self.heartbeat_timer.stop()
+            self.heartbeat_placeholder.setStyleSheet("color: transparent; font-size: 14px;")
+            self.heartbeat_active = False
+
+        current_time = datetime.now().strftime("%H:%M:%S")
+        status = "ON" if state else "OFF"
+        self.terminal_output.append(
+            f">{current_time}: <span style='color: lightblue;'>Heartbeat turned {status}</span>")
+        self.logger.info(f"Heartbeat toggled to {status}")
 
     def update_data(self):
         """Aktualizacja danych na interfejsie"""

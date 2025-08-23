@@ -58,7 +58,7 @@ def main():
 
     window = MainWindow(config, transmitter)
 
-    threading.Thread(target=transmitter.attempt_connection, args=(window.on_partner_connected,)).start()
+    threading.Thread(target=transmitter.connect, args=(window.on_partner_connected,)).start()
 
     window.resize(800, 600)
     window.show()

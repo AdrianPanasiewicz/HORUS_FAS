@@ -77,9 +77,9 @@ class MainWindow(QMainWindow):
             self.serial.LoraSet(config['lora_config'], config['is_config_selected'])
             self.logger.info(f"Konfiguracja LoRa ustawiona: {config['lora_config']}")
 
-        self.serial.telemetry_received.attempt_connection(self.processor.handle_telemetry)
-        self.serial.transmission_info_received.attempt_connection(self.processor.handle_transmission_info)
-        self.processor.processed_data_ready.attempt_connection(self.handle_processed_data)
+        self.serial.telemetry_received.connect(self.processor.handle_telemetry)
+        self.serial.transmission_info_received.connect(self.processor.handle_transmission_info)
+        self.processor.processed_data_ready.connect(self.handle_processed_data)
 
         # Wykresy
         self.alt_plot = LivePlot(title="Altitude", color='b', timespan=30)
@@ -823,7 +823,7 @@ class MainWindow(QMainWindow):
             # 3. Zapis do CSV - to powinno być w serial_reader
             # self.csv_handler.write_row(data)
 
-            print(f"DEBUG: Przetworzono dane do wysłania: {data}")
+            # print(f"DEBUG: Przetworzono dane do wysłania: {data}")
 
             # 4. Wysyłanie do Stacji 2
             transmit_data = {
@@ -999,7 +999,7 @@ class MainWindow(QMainWindow):
 
         self.test_timer = QtCore.QTimer()
         self.test_timer.setTimerType(QtCore.Qt.PreciseTimer)  # Dokładniejszy timer
-        self.test_timer.timeout.attempt_connection(self._generate_test_data)
+        self.test_timer.timeout.connect(self._generate_test_data)
 
         # 3. Ustawienie interwału (100ms = 0.1s)
         self.test_timer.start(1000)
@@ -1046,7 +1046,7 @@ class MainWindow(QMainWindow):
 
         self.test_map_timer = QtCore.QTimer()
         self.test_map_timer.setTimerType(QtCore.Qt.PreciseTimer)  # Dokładniejszy timer
-        self.test_map_timer.timeout.attempt_connection(self._generate_test_map_data)
+        self.test_map_timer.timeout.connect(self._generate_test_map_data)
 
         self.test_map_timer.start(1000)
 

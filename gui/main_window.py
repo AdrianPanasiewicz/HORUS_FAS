@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QWidget, QSizePolicy,
                              QHBoxLayout, QLabel,
                              QGridLayout, QVBoxLayout, QMessageBox, QInputDialog, QColorDialog, QDialog, QTextBrowser,
-                             QDialogButtonBox)
+                             QDialogButtonBox, QTableWidget, QTableWidgetItem)
 from PyQt5.QtCore import Qt, QTimer, QUrl
 from PyQt5.QtGui import QIcon, QPixmap, QColor
 from PyQt5 import QtCore
@@ -175,19 +175,35 @@ class MainWindow(QMainWindow):
         map_layout.addWidget(self.map_view)
         map_widget.setLayout(map_layout)
 
-        row = QVBoxLayout()
-        self.altitude_label = QLabel(f"Altitude: {self.current_data['altitude']:.2f} m")
-        self.velocity_label = QLabel(f"Velocity: {self.current_data['ver_velocity']:.2f} m/s")
-        self.accel_label = QLabel(f"Acceleration: {self.current_data['ver_accel']:.2f} m/s²")
-        self.pitch_label = QLabel(f"Pitch: {self.current_data['pitch']:.2f}°")
-        self.roll_label = QLabel(f"Roll: {self.current_data['roll']:.2f}°")
-        self.yaw_label = QLabel(f"Yaw: {self.current_data['yaw']:.2f}°")
-        self.position_label = QLabel(f"Pos: {self.current_data['latitude']:.6f}° N, {self.current_data['longitude']:.6f}° E")
+        self.table = QTableWidget()
+        self.table.setRowCount(8)
+        self.table.setColumnCount(2)
+        self.table.setHorizontalHeaderLabels(["Parameter", "Value"])
 
-        for label in [self.altitude_label, self.velocity_label, self.accel_label, self.pitch_label,
-                      self.roll_label, self.yaw_label, self.position_label]:
-            label.setStyleSheet("color: white; font-size: 16px; font-weight: bold;")
-            row.addWidget(label, alignment=Qt.AlignLeft)
+        parameters = ["Altitude", "Velocity", "Acceleration", "Pitch", "Roll", "Yaw", "Latitude", "Longitude"]
+        values = [
+            f"{self.current_data['altitude']:.2f} m",
+            f"{self.current_data['ver_velocity']:.2f} m/s",
+            f"{self.current_data['ver_accel']:.2f} m/s²",
+            f"{self.current_data['pitch']:.2f}°",
+            f"{self.current_data['roll']:.2f}°",
+            f"{self.current_data['yaw']:.2f}°",
+            f"{self.current_data['latitude']:.6f}° N",
+            f"{self.current_data['longitude']:.6f}° E"
+        ]
+
+        for i, (param, value) in enumerate(zip(parameters, values)):
+            self.table.setItem(i, 0, QTableWidgetItem(param))
+            self.table.setItem(i, 1, QTableWidgetItem(value))
+
+        self.table.setStyleSheet("font-size: 20px;")
+        self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.horizontalHeader().setSectionResizeMode(0, self.table.horizontalHeader().ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(1, self.table.horizontalHeader().ResizeMode.Stretch)
+
+        row = QVBoxLayout()
+        row.addWidget(self.table)
 
         # Dodanie wierszy do kolumny danych
         data_layout.addLayout(row)
@@ -864,13 +880,19 @@ class MainWindow(QMainWindow):
         self.roll_plot.add_point(timestamp,self.current_data['roll'])
         self.yaw_plot.add_point(timestamp,self.current_data['yaw'])
 
-        self.altitude_label.setText(f"Altitude: {self.current_data['altitude']:.2f} m")
-        self.velocity_label.setText(f"Velocity: {self.current_data['ver_velocity']:.2f} m/s")
-        self.accel_label.setText(f"Acceleration: {self.current_data['ver_accel']:.2f} m/s²")
-        self.pitch_label.setText(f"Pitch: {self.current_data['pitch']:.2f}°")
-        self.roll_label.setText(f"Roll: {self.current_data['roll']:.2f}°")
-        self.yaw_label.setText(f"Yaw: {self.current_data['yaw']:.2f}°")
-        self.position_label.setText(f"Pos: {self.current_data['latitude']:.6f}° N, {self.current_data['longitude']:.6f}° E")
+        values = [
+            f"{self.current_data['altitude']:.2f} m",
+            f"{self.current_data['ver_velocity']:.2f} m/s",
+            f"{self.current_data['ver_accel']:.2f} m/s²",
+            f"{self.current_data['pitch']:.2f}°",
+            f"{self.current_data['roll']:.2f}°",
+            f"{self.current_data['yaw']:.2f}°",
+            f"{self.current_data['latitude']:.6f}° N",
+            f"{self.current_data['longitude']:.6f}° E"
+        ]
+
+        for i, value in enumerate(values):
+            self.table.setItem(i, 1, QTableWidgetItem(value))
 
         self.now_str = datetime.now().strftime("%H:%M:%S")
         msg = (

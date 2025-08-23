@@ -83,4 +83,6 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
+        logger = logging.getLogger('HORUS_FAS_logger')
+        logger.error(f"An exception has occurred: {e}")
         print("An exception has occurred: ", e)

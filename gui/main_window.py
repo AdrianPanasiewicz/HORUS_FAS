@@ -251,7 +251,7 @@ class MainWindow(QMainWindow):
         right_layout.setSpacing(10)
         right_container.setLayout(right_layout)
 
-        self.connection_label = QLabel("Not connected to HORUS CSS")
+        self.connection_label = QLabel("HORUS CSS disconnected")
         self.connection_label.setStyleSheet("font-size: 14px; font-weight: bold; color: red;")
         right_layout.addWidget(self.connection_label)
 
@@ -814,18 +814,12 @@ class MainWindow(QMainWindow):
 
     def handle_processed_data(self, data):
         try:
-            # 1. Aktualizacja bieżących danych
+
             self.current_data = data
-
-            # 2. Aktualizacja GUI
             self.update_data()
+            self.csv_handler.write_row(data)
+            self.logger.debug(f"Przetworzono dane do wysłania: {data}")
 
-            # 3. Zapis do CSV - to powinno być w serial_reader
-            # self.csv_handler.write_row(data)
-
-            # print(f"DEBUG: Przetworzono dane do wysłania: {data}")
-
-            # 4. Wysyłanie do Stacji 2
             transmit_data = {
                 'timestamp': datetime.now().isoformat(),
                 'telemetry': {
@@ -835,7 +829,9 @@ class MainWindow(QMainWindow):
                     'longitude': data.get('longitude', 0),
                     'pitch': data.get('pitch', 0),
                     'roll': data.get('roll', 0),
-                    'yaw': data.get('yaw', 0)
+                    'yaw': data.get('yaw', 0),
+                    'bay_pressure': data.get('bay_pressure',0.0),
+                    'bay_temperature': data.get('bay_temperature',0.0)
                 },
                 'transmission': {
                     'rssi': data.get('rssi', 0),
@@ -1029,7 +1025,8 @@ class MainWindow(QMainWindow):
             'status': random.randint(0, 3),
             'latitude': 52.2549 + random.uniform(-0.01, 0.01),
             'longitude': 20.9004 + random.uniform(-0.01, 0.01),
-            'len': 0,
+            'bay_pressure': random.uniform(900, 1100),
+            'bay_temperature': random.uniform(25, 30),
             'rssi': random.randint(-120, -50),
             'snr': random.uniform(-10, 10)
         }
@@ -1069,7 +1066,7 @@ class MainWindow(QMainWindow):
 
     def on_partner_connected(self):
         self.logger.info("HORUS CSS connected to HORUS FAS")
-        self.connection_label.setText("HORUS CSS connected")
+        self.connection_label.setText("   HORUS CSS connected")
         self.connection_label.setStyleSheet("color: #66FF00; font-weight: bold;")
         self.is_partner_connected = True
 
@@ -1079,7 +1076,7 @@ class MainWindow(QMainWindow):
         self.connection_label.setStyleSheet("color: red; font-weight: bold;")
         self.is_partner_connected = False
 
-    def handle_processed_data(self, data):
+    def handle_processed_data_correct(self, data):
         pass
         # self.logger.debug(
         #     f"Odebrano dane przetworzone: {data}")
@@ -1099,7 +1096,7 @@ class MainWindow(QMainWindow):
         #     self.logger.exception(
         #         f"Błąd w update_data(): {e}")
 
-    def update_data(self):
+    def update_data_correct(self):
         pass
         # """Aktualizacja danych na interfejsie"""
         # # Aktualizacja wykresów

@@ -881,7 +881,7 @@ class MainWindow(QMainWindow):
         )
         self.logger.debug(f"Odebrano dane: {msg}")
 
-    def start_random_test(self, duration=30):
+    def start_random_test(self, duration=120):
         """Rozpoczyna test z losowymi wartościami na wszystkich wykresach"""
         # 1. Reset wszystkich wykresów
         plots = [
@@ -937,7 +937,7 @@ class MainWindow(QMainWindow):
         self.current_data = test_data
         self.update_data()
 
-    def start_map_simulation(self, duration=30):
+    def start_map_simulation(self, duration=120):
         if hasattr(self, 'test_map_timer') and self.test_map_timer:
             self.test_map_timer.stop()
 
@@ -952,7 +952,7 @@ class MainWindow(QMainWindow):
 
         QtCore.QTimer.singleShot(
             duration * 1000,
-            lambda: self.stop_random_test() or self.logger.info("Test zakończony")
+            lambda: self.stop_map_simulation() or self.logger.info("Test zakończony")
         )
 
         self.logger.info(f"Rozpoczęto test mapy na {duration} sekund")

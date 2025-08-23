@@ -63,6 +63,7 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon(r'gui/white_icon.png'))
         self.setStyleSheet(
             open(r'gui/resources/themes/dark_blue.qss').read())
+        self.showMaximized()
 
         self.serial = SerialReader(config['port'], config['baudrate'])
         self.logger.info(f"SerialReader zainicjalizowany na porcie {config['port']} z baudrate {config['baudrate']}")
@@ -128,9 +129,9 @@ class MainWindow(QMainWindow):
         right_panel = self.create_right_panel()
 
         # Ustawienie elementów w siatce
-        main_layout.addLayout(left_plots_column, 0, 0)
-        main_layout.addLayout(middle_plots_column, 0, 1)
-        main_layout.addWidget(right_panel, 0, 2)
+        main_layout.addLayout(left_plots_column, 0, 0, 1, 40)
+        main_layout.addLayout(middle_plots_column, 0, 41, 1, 40)
+        main_layout.addWidget(right_panel, 0, 81, 1, 20)
 
         central.setLayout(main_layout)
         self.setCentralWidget(central)
@@ -146,7 +147,7 @@ class MainWindow(QMainWindow):
     def create_right_panel(self):
         """Tworzy dolny panel z danymi i mapą"""
         panel = QWidget()
-        main_layout = QVBoxLayout()  # Główny układ poziomy (dwie kolumny)
+        main_layout = QVBoxLayout()
         main_layout.setContentsMargins(5, 5, 5, 5)
         main_layout.setSpacing(10)
 
@@ -160,9 +161,6 @@ class MainWindow(QMainWindow):
         map_layout = QVBoxLayout()
         map_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Ustawienie stałej szerokości mapy (możesz dostosować)
-        self.map_view.setFixedWidth(self.alt_plot.width()//2)
-        # self.map_view.setFixedHeight(200)
         map_layout.addWidget(self.map_view)
         map_widget.setLayout(map_layout)
 
@@ -182,13 +180,11 @@ class MainWindow(QMainWindow):
 
         # Dodanie wierszy do kolumny danych
         data_layout.addLayout(row)
-        # data_layout.addSpacing(10)  # Dodatkowy odstęp po pierwszym wierszu
         data_labels.setLayout(data_layout)
 
         main_layout.addWidget(map_widget, 30)
         main_layout.addWidget(data_labels, 70)
         panel.setLayout(main_layout)
-        panel.setMinimumHeight(200)
         return panel
 
     def setup_status_bar(self):
@@ -260,17 +256,6 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event):
         """Obsługa zmiany rozmiaru okna"""
         super().resizeEvent(event)
-        # Poczekaj chwilę na aktualizację geometrii
-        QtCore.QTimer.singleShot(50, self.adjust_map_width)
-
-    def adjust_map_width(self):
-        """Dostosowuje szerokość mapy do wykresów"""
-        if hasattr(self, 'map_view') and self.map_view and hasattr(self, 'alt_plot'):
-            # Pobierz rzeczywistą szerokość wykresu (po uwzględnieniu layoutu)
-            plot_width = self.alt_plot.size().width()
-            if plot_width > 100:  # Minimalna sensowna szerokość
-                self.map_view.setFixedWidth(plot_width - 15)  # 10px mniej niż wykres
-                self.update_map_size()
 
     def update_map_size(self):
         """Aktualizuje rozmiar mapy"""

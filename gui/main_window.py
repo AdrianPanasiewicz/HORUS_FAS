@@ -1,17 +1,21 @@
+import io
 import os
 import platform
 import subprocess
 import logging
+
+import numpy as np
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWidgets import (QMainWindow,
                              QWidget, QSizePolicy,
                              QHBoxLayout, QLabel,
-                             QGridLayout, QVBoxLayout, QMessageBox)
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QIcon, QPixmap
+                             QGridLayout, QVBoxLayout, QMessageBox, QInputDialog, QColorDialog, QDialog, QTextBrowser,
+                             QDialogButtonBox)
+from PyQt5.QtCore import Qt, QTimer, QUrl
+from PyQt5.QtGui import QIcon, QPixmap, QColor
 from PyQt5 import QtCore
+from serial.tools import list_ports
 import folium
-from core.network_handler import NetworkTransmitter
 from core.serial_reader import SerialReader
 from gui.live_plot import LivePlot
 from datetime import datetime
@@ -46,6 +50,8 @@ class MainWindow(QMainWindow):
         }
 
         # Inicjalizacja mapy
+        self.default_lat = 52.2549
+        self.default_lng = 20.9004
         self.current_lat = self.current_data['latitude']
         self.current_lng = self.current_data['longitude']
         self.map = None
@@ -56,10 +62,6 @@ class MainWindow(QMainWindow):
             f"CSV handler zainicjalizowany w sesji: {self.csv_handler.session_dir}")
 
         self.setWindowTitle("HORUS_FAS")
-        # self.setStyleSheet("""
-        #     background-color: black;
-        #     color: white;
-        # """)
         self.setWindowIcon(QIcon(r'gui/white_icon.png'))
         self.setStyleSheet(
             open(r'gui/resources/themes/dark_blue.qss').read())
@@ -81,8 +83,8 @@ class MainWindow(QMainWindow):
 
         # Wykresy
         self.alt_plot = LivePlot(title="Altitude", color='b', timespan=30)
-        self.ver_velocity_plot = LivePlot(title="Ver Velocity", color='r', timespan=30)
-        self.ver_accel_plot = LivePlot(title="Ver Acceleration", color='c', timespan=30)
+        self.ver_velocity_plot = LivePlot(title="Vertical Velocity", color='r', timespan=30)
+        self.ver_accel_plot = LivePlot(title="Vertical Acceleration", color='c', timespan=30)
         self.pitch_plot = LivePlot(title="Pitch", color='y', timespan=30)
         self.roll_plot = LivePlot(title="Roll", color='g', timespan=30)
         self.yaw_plot = LivePlot(title="Yaw", color='w', timespan=30)
@@ -106,19 +108,13 @@ class MainWindow(QMainWindow):
         self.yaw_plot.set_y_label("Yaw [°]")
 
         # Mapa
-        self.initialize_map()
         self.map_view = QWebEngineView()
         self.map_view.setSizePolicy(
             QSizePolicy.Expanding,
             QSizePolicy.Expanding  # Pionowe rozciąganie
         )
-        # self.map_view.setStyleSheet("""
-        #     QWebEngineView {
-        #         background-color: black;
-        #         border: 1px solid #444;
-        #         border-radius: 3px;
-        #     }
-        # """)
+
+        self.set_map(lat=self.default_lat, lng=self.default_lng)
         self.update_map_view()
 
         # Główny układ (QGridLayout)
@@ -155,9 +151,6 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         self.serial.start_reading()
-
-        # Testing
-        QtCore.QTimer.singleShot(1000, lambda: self.start_random_test(30))
 
         self.setup_status_bar()
         self.declare_menus()
@@ -200,8 +193,8 @@ class MainWindow(QMainWindow):
         data_layout.addLayout(row)
         data_labels.setLayout(data_layout)
 
-        main_layout.addWidget(map_widget, 30)
-        main_layout.addWidget(data_labels, 70)
+        main_layout.addWidget(map_widget, 40)
+        main_layout.addWidget(data_labels, 60)
         panel.setLayout(main_layout)
         return panel
 
@@ -254,47 +247,67 @@ class MainWindow(QMainWindow):
             self.heartbeat_placeholder.setStyleSheet(f"color: {color}; font-size: 14px;")
 
 
-    def initialize_map(self):
-        """Inicjalizuje mapę z dynamicznym rozmiarem"""
+    def set_map(self, lat, lng):
         self.map = folium.Map(
-            location=[self.current_lat, self.current_lng],
+            location=[lat, lng],
             zoom_start=15,
             control_scale=True,
             tiles='OpenStreetMap'
         )
 
         folium.Marker(
-            [self.current_lat, self.current_lng],
-            popup=f"LOTUS: {self.current_lat:.6f}, {self.current_lng:.6f}",
-            icon=folium.Icon(color="green", icon="flag", prefix='LT')
+            [lat, lng],
+            popup=f"LOTUS: {lat:.6f}, {lng:.6f}",
+            icon=folium.Icon(color="green", icon="flag", prefix='fa')
         ).add_to(self.map)
 
-        self.map.save('map.html')
+        data = io.BytesIO()
+        self.map.save(data, close_file=False)
+        html = data.getvalue().decode()
+
+        self.map_view.setHtml(html, QUrl(''))
 
     def resizeEvent(self, event):
         """Obsługa zmiany rozmiaru okna"""
         super().resizeEvent(event)
 
-    def update_map_size(self):
-        """Aktualizuje rozmiar mapy"""
-        if self.map_view:
-            # Pobierz aktualne rozmiary
-            new_width = self.map_view.width()
-            new_height = self.map_view.height()
-
-            # Tylko jeśli rozmiar się zmienił
-            if new_width > 0 and new_height > 0:
-                self.initialize_map()
-                self.update_map_view()
-
     def declare_menus(self):
         self.menu = self.menuBar()
+        self.menu.setStyleSheet("""
+        QMenu {
+            background-color: #1e1e1e;
+            color: white;
+            border: 1px solid #444;
+        }
+
+        QMenu::item {
+            padding: 5px 25px 5px 25px;
+        }
+
+        QMenu::item:selected {
+            background-color: #555;
+        }
+
+        QMenu::indicator {
+            width: 14px;
+            height: 14px;
+            border-radius: 7px;  /* makes it circular */
+            border: 1px solid #888;
+            background-color: #2e2e2e;
+        }
+
+        QMenu::indicator:checked {
+            background-color: #4caf50;  /* nicer green */
+            border: 1px solid #4caf50;
+            box-shadow: 0px 0px 2px black; /* subtle shadow */
+        }
+        """)
         self.file_menu = self.menu.addMenu("File")
         self.view_menu = self.menu.addMenu("View")
         self.theme_menu = self.view_menu.addMenu("Themes")
-        # self.timespan_menu = self.view_menu.addMenu("Timespan")
-        # self.tools_menu = self.menu.addMenu("Tools")
-        # self.test_menu = self.menu.addMenu("Test")
+        self.timespan_menu = self.view_menu.addMenu("Timespan")
+        self.tools_menu = self.menu.addMenu("Tools")
+        self.test_menu = self.menu.addMenu("Test")
         self.help_menu = self.menu.addMenu("Help")
 
         self.file_menu.addAction("Exit", self.close)
@@ -318,38 +331,42 @@ class MainWindow(QMainWindow):
 
         self.view_menu.addSeparator()
 
-        # self.crosshair_action = self.view_menu.addAction("Crosshair")
-        # self.crosshair_action.setCheckable(True)
-        # self.crosshair_action.setChecked(False)
-        # # self.crosshair_action.triggered.connect(self.toggle_crosshairs)
-        #
-        # self.auto_zoom_action = self.view_menu.addAction("Auto-Zoom")
-        # self.auto_zoom_action.setCheckable(True)
-        # self.auto_zoom_action.setChecked(True)
-        # # self.auto_zoom_action.triggered.connect(self.toggle_auto_zoom)
-        #
-        # self.data_markers_action = self.view_menu.addAction("Data Markers")
-        # self.data_markers_action.setCheckable(True)
-        # self.data_markers_action.setChecked(True)
-        # # self.data_markers_action.triggered.connect(self.toggle_data_markers)
-        #
-        # self.grid_action = self.view_menu.addAction("Grid")
-        # self.grid_action.setCheckable(True)
-        # self.grid_action.setChecked(True)
-        # # self.grid_action.triggered.connect(self.toggle_plot_grid)
+        self.crosshair_action = self.view_menu.addAction("Crosshair")
+        self.crosshair_action.setCheckable(True)
+        self.crosshair_action.setChecked(False)
+        self.crosshair_action.triggered.connect(self.toggle_crosshairs)
 
-        # self.view_menu.addSeparator()
-        # self.view_menu.addAction("Clear Plots", self.clear_plots)
-        # self.view_menu.addAction("Clear All", self.clear_all)
+        self.auto_zoom_action = self.view_menu.addAction("Auto-Zoom")
+        self.auto_zoom_action.setCheckable(True)
+        self.auto_zoom_action.setChecked(True)
+        self.auto_zoom_action.triggered.connect(self.toggle_auto_zoom)
+
+        self.data_markers_action = self.view_menu.addAction("Data Markers")
+        self.data_markers_action.setCheckable(True)
+        self.data_markers_action.setChecked(True)
+        self.data_markers_action.triggered.connect(self.toggle_data_markers)
+
+        self.grid_action = self.view_menu.addAction("Grid")
+        self.grid_action.setCheckable(True)
+        self.grid_action.setChecked(True)
+        self.grid_action.triggered.connect(self.toggle_plot_grid)
+
+        self.color_action = self.view_menu.addAction("Plot color")
+        self.color_action.triggered.connect(self.change_line_colors)
+
+
+        self.view_menu.addSeparator()
+        self.view_menu.addAction("Clear Plots", self.clear_plots)
+        self.view_menu.addAction("Clear All", self.clear_all)
 
         self.help_menu.addAction("About application", self.show_about_app_dialog)
         self.help_menu.addAction("About KNS LiK", self.show_about_kns_dialog)
 
-        # self.test_menu.addAction("Start Plot Simulation", self.start_plot_simulation)
-        # self.test_menu.addAction("Stop Plot Simulation", self.stop_plot_simulation)
-        # self.plot_speed_menu = self.test_menu.addMenu("Plot Simulation Speed")
-        # self.test_menu.addAction("Start Map Simulation", self.start_map_simulation)
-        # self.test_menu.addAction("Stop Map Simulation", self.stop_map_simulation)
+        self.test_menu.addAction("Start Plot Simulation", self.start_random_test)
+        self.test_menu.addAction("Stop Plot Simulation", self.stop_random_test)
+        self.test_menu.addSeparator()
+        self.test_menu.addAction("Start Map Simulation", self.start_map_simulation)
+        self.test_menu.addAction("Stop Map Simulation", self.stop_map_simulation)
 
         self.themes = {
             "Dark Blue": "dark_blue.qss",
@@ -365,36 +382,158 @@ class MainWindow(QMainWindow):
             action.triggered.connect(lambda _, t=theme_file: self.apply_theme(t))
             self.theme_actions[theme_name] = action
 
-        # self.timespan_menu.addAction("30 seconds", lambda: self.change_plot_timespans(30))
-        # self.timespan_menu.addAction("60 seconds", lambda: self.change_plot_timespans(60))
-        # self.timespan_menu.addAction("90 seconds", lambda: self.change_plot_timespans(90))
-        # self.timespan_menu.addAction("120 seconds", lambda: self.change_plot_timespans(120))
-        #
-        # serial_menu = self.tools_menu.addMenu("Serial Configuration")
-        # serial_menu.addAction("Scan Ports", self.scan_serial_ports)
-        # serial_menu.addAction("Change Baud Rate", self.change_baud_rate)
-        # serial_menu.addAction("Reconnect Serial", self.reconnect_serial)
-        # self.tools_menu.addAction("Configure Filters", self.configure_filters)
-        # self.tools_menu.addSeparator()
-        # self.tools_menu.addAction("Calculate Statistics", self.calculate_statistics)
+        self.timespan_menu.addAction("30 seconds", lambda: self.change_plot_timespans(30))
+        self.timespan_menu.addAction("60 seconds", lambda: self.change_plot_timespans(60))
+        self.timespan_menu.addAction("90 seconds", lambda: self.change_plot_timespans(90))
+        self.timespan_menu.addAction("120 seconds", lambda: self.change_plot_timespans(120))
 
-        # self.plot_speed_actions = {}
-        #
-        # speeds = {
-        #     "Fast (250 ms)": 250,
-        #     "Normal (500 ms)": 500,
-        #     "Slow (1000 ms)": 1000,
-        #     "Very Slow (2000 ms)": 2000,
-        # }
-        #
-        # for label, interval in speeds.items():
-        #     action = self.plot_speed_menu.addAction(label)
-        #     action.setCheckable(True)
-        #     action.triggered.connect(lambda checked, i=interval: self.set_plot_sim_speed(i))
-        #     self.plot_speed_actions[label] = action
+        serial_menu = self.tools_menu.addMenu("Serial Configuration")
+        serial_menu.addAction("Scan Ports", self.scan_serial_ports)
+        serial_menu.addAction("Change Baud Rate", self.change_baud_rate)
+        serial_menu.addAction("Reconnect Serial", self.reconnect_serial)
+        self.tools_menu.addAction("Configure Filters", self.configure_filters)
+        self.tools_menu.addSeparator()
+        self.tools_menu.addAction("Calculate Statistics", self.calculate_statistics)
 
-        # self.plot_speed_actions["Normal (500 ms)"].setChecked(True)
-        # self.plot_sim_interval = 500
+
+    def toggle_crosshairs(self):
+        state = self.crosshair_action.isChecked()
+        plots = [
+            self.alt_plot,
+            self.ver_velocity_plot,
+            self.ver_accel_plot,
+            self.pitch_plot,
+            self.roll_plot,
+            self.yaw_plot
+        ]
+
+        for plot in plots:
+            plot.toggle_crosshair(state)
+
+        status = "ON" if state else "OFF"
+        self.logger.info(f"Crosshair toggled to {status}")
+
+    def toggle_auto_zoom(self):
+        state = self.auto_zoom_action.isChecked()
+        plots = [
+            self.alt_plot,
+            self.ver_velocity_plot,
+            self.ver_accel_plot,
+            self.pitch_plot,
+            self.roll_plot,
+            self.yaw_plot
+        ]
+
+        for plot in plots:
+            plot.toggle_auto_zoom(state)
+
+        current_time = datetime.now().strftime("%H:%M:%S")
+        status = "ON" if state else "OFF"
+        self.logger.info(f"Auto-zoom toggled to {status}")
+
+    def change_plot_timespans(self, timespan):
+        plots = [
+            self.alt_plot,
+            self.ver_velocity_plot,
+            self.ver_accel_plot,
+            self.pitch_plot,
+            self.roll_plot,
+            self.yaw_plot
+        ]
+        for plot in plots:
+            plot.update_timespan(timespan)
+
+
+    def toggle_data_markers(self):
+        state = self.data_markers_action.isChecked()
+        plots = [
+            self.alt_plot,
+            self.ver_velocity_plot,
+            self.ver_accel_plot,
+            self.pitch_plot,
+            self.roll_plot,
+            self.yaw_plot
+        ]
+
+        for plot in plots:
+            plot.toggle_data_markers(state)
+
+        current_time = datetime.now().strftime("%H:%M:%S")
+        status = "ON" if state else "OFF"
+        self.logger.info(f"Data markers toggled to {status}")
+
+    def toggle_plot_grid(self):
+        state = self.grid_action.isChecked()
+        plots = [
+            self.alt_plot,
+            self.ver_velocity_plot,
+            self.ver_accel_plot,
+            self.pitch_plot,
+            self.roll_plot,
+            self.yaw_plot
+        ]
+
+        for plot in plots:
+            plot.toggle_grid(state)
+
+    def change_line_colors(self):
+        plots = {
+            "Altitude": self.alt_plot,
+            "Vertical velocity": self.ver_velocity_plot,
+            "Vertical acceleration": self.ver_accel_plot,
+            "Pitch plot": self.pitch_plot,
+            "Roll plot": self.roll_plot,
+            "Yaw plot": self.yaw_plot
+        }
+
+        plot_name, ok = QInputDialog.getItem(
+            self, "Select Plot", "Choose plot to change color:", list(plots.keys()), 0, False
+        )
+
+        if not ok:
+            return
+
+        current_color = plots[plot_name].line_color
+        current_qcolor = QColor(current_color)
+
+        color = QColorDialog.getColor(current_qcolor, self, "Select Line Color")
+
+        if color.isValid():
+            plots[plot_name].set_line_color(color)
+
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self.terminal_output.append(
+                f">{current_time}: <span style='color: {color.name()};'>Plot '{plot_name}' line color changed</span>"
+            )
+            self.logger.info(f"Plot '{plot_name}' line color changed to {color.name()}")
+
+    def clear_plots(self):
+        plots = [
+            self.alt_plot,
+            self.ver_velocity_plot,
+            self.ver_accel_plot,
+            self.pitch_plot,
+            self.roll_plot,
+            self.yaw_plot
+        ]
+
+        for plot in plots:
+            plot.clear_data()
+
+        self.altitude_label.setText("Altitude: 0.00 m")
+        self.velocity_label.setText("Velocity: 0.00 m/s")
+        self.accel_label.setText("Acceleration: 0.00 m/s²")
+        self.pitch_label.setText("Pitch: 0.00°")
+        self.roll_label.setText("Roll: 0.00°")
+        self.yaw_label.setText("Yaw: 0.00°")
+        self.position_label.setText("Pos: 0.000000° N, 0.000000° E")
+
+        self.logger.info("Plots cleared")
+
+    def clear_all(self):
+        self.clear_plots()
+        self.set_map(self.default_lat, self.default_lng)
+        self.logger.debug(f"Cleared all")
 
     def apply_theme(self, theme_file):
         try:
@@ -444,13 +583,142 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Export Error", f"Failed to export plots: {str(e)}")
 
     def update_map_view(self):
+        pass
         """Aktualizuje widok mapy z uwzględnieniem skalowania"""
         with open('map.html', 'r') as f:
             html = f.read()
-            # Dodaj meta tag dla responsywności
             html = html.replace('<head>',
                                 '<head><meta name="viewport" content="width=device-width, initial-scale=1.0">')
-            self.map_view.setHtml(html)
+            self.map_view.setHtml(html,)
+
+    def scan_serial_ports(self):
+        try:
+            ports = [port.device for port in list_ports.comports()]
+
+            if not ports:
+                QMessageBox.warning(self, "Serial Ports", "No serial ports found")
+                return
+
+            message = "Available ports:\n" + "\n".join([f"• {port}" for port in ports])
+            QMessageBox.information(self, "Serial Ports", message)
+
+            self.logger.info(f"Scanned serial ports: {ports}")
+
+        except Exception as e:
+            self.logger.error(f"Error scanning serial ports: {str(e)}")
+            QMessageBox.critical(self, "Serial Ports Error", f"Error scanning ports: {str(e)}")
+
+    def change_baud_rate(self):
+        current_baud = self.serial.baudrate
+        baud_rates = ["9600", "19200", "38400", "57600", "115200"]
+
+        choice, ok = QInputDialog.getItem(
+            self, "Select Baud Rate", "Choose a baud rate:",
+            baud_rates, baud_rates.index(str(current_baud)), False
+        )
+
+        if ok and choice:
+            try:
+                new_baud = int(choice)
+                self.serial.set_baudrate(new_baud)
+
+                QMessageBox.information(
+                    self, "Baud Rate Changed", f"Baud rate successfully changed to {new_baud}"
+                )
+                self.logger.info(f"Baud rate changed to {new_baud}")
+
+            except Exception as e:
+                self.logger.error(f"Error changing baud rate: {str(e)}")
+                QMessageBox.critical(
+                    self, "Error", f"Error changing baud rate: {str(e)}"
+                )
+
+    def reconnect_serial(self):
+        try:
+            self.serial.reconnect()
+
+            if self.serial.is_connected():
+                QMessageBox.information(
+                    self, "Serial Connection", "Serial reconnected successfully"
+                )
+                self.logger.info("Serial reconnected successfully")
+            else:
+                QMessageBox.warning(
+                    self, "Serial Connection", "Serial reconnection failed"
+                )
+                self.logger.warning("Serial reconnection failed")
+
+        except Exception as e:
+            self.logger.error(f"Error reconnecting serial: {str(e)}")
+            QMessageBox.critical(
+                self, "Serial Connection Error", f"Error reconnecting serial: {str(e)}"
+            )
+
+    def configure_filters(self):
+        QMessageBox.information(
+            self,
+            "Configure Filters",
+            "This feature is under development. It will allow you to configure "
+            "data filtering algorithms for noise reduction."
+        )
+
+    def calculate_statistics(self):
+        """Calculate and display statistics for plot data"""
+        try:
+            stats = []
+
+            plots = {
+                "Altitude": self.alt_plot,
+                "Vertical velocity": self.ver_velocity_plot,
+                "Vertical acceleration": self.ver_accel_plot,
+                "Pitch plot": self.pitch_plot,
+                "Roll plot": self.roll_plot,
+                "Yaw plot": self.yaw_plot
+            }
+
+            for name, plot in plots.items():
+                if plot.values.any():
+                    values = np.array(plot.values)
+                    stats.append(f"<b>{name}:</b>")
+                    stats.append(f"  Min: {np.min(values):.2f}")
+                    stats.append(f"  Max: {np.max(values):.2f}")
+                    stats.append(f"  Mean: {np.mean(values):.2f}")
+                    stats.append(f"  Std Dev: {np.std(values):.2f}")
+                    stats.append("")
+
+            if not stats:
+                raise ValueError("No data available for statistics")
+
+            stats_html = "<br>".join(stats)
+
+            # Show in dialog
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Data Statistics")
+            dialog.resize(200, 400)
+            layout = QVBoxLayout()
+
+            text_browser = QTextBrowser()
+            text_browser.setHtml(stats_html)
+            layout.addWidget(text_browser)
+
+            button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+            button_box.accepted.connect(dialog.accept)
+            layout.addWidget(button_box)
+
+            dialog.setLayout(layout)
+            dialog.exec()
+
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self.terminal_output.append(
+                f">{current_time}: <span style='color: lightgreen;'>Calculated data statistics</span>")
+            self.logger.info("Calculated data statistics")
+
+        except Exception as e:
+            self.logger.error(f"Error calculating statistics: {str(e)}")
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self.terminal_output.append(
+                f">{current_time}: <span style='color: red;'>Error calculating statistics: {str(e)}</span>")
+
 
     def handle_processed_data(self, data):
         try:
@@ -604,16 +872,6 @@ class MainWindow(QMainWindow):
         self.yaw_label.setText(f"Yaw: {self.current_data['yaw']:.2f}°")
         self.position_label.setText(f"Pos: {self.current_data['latitude']:.6f}° N, {self.current_data['longitude']:.6f}° E")
 
-        '''
-        self.label_info.setText(
-            f"Pitch: {self.current_data['pitch']:.2f}°, Roll: {self.current_data['roll']:.2f}°\n"
-            f"V: {self.current_data['ver_velocity']:.2f} m/s, H: {self.current_data['altitude']:.2f} m"
-        )
-        self.label_pos.setText(
-            f"LON:\t{self.current_data['longitude']:.6f}° N \nLAT:\t{self.current_data['latitude']:.6f}° E"
-        )
-        '''
-
         self.now_str = datetime.now().strftime("%H:%M:%S")
         msg = (
             f"{self.current_data['ver_velocity']};{self.current_data['altitude']};"
@@ -622,8 +880,6 @@ class MainWindow(QMainWindow):
             f"{self.current_data['longitude']}"
         )
         self.logger.debug(f"Odebrano dane: {msg}")
-
-        status = self.current_data['status']
 
     def start_random_test(self, duration=30):
         """Rozpoczyna test z losowymi wartościami na wszystkich wykresach"""
@@ -636,9 +892,6 @@ class MainWindow(QMainWindow):
             self.roll_plot,
             self.yaw_plot
         ]
-
-        # for plot in plots:
-        #     plot.reset_time()  # Reset czasu i danych
 
         # 2. Inicjalizacja timera
         if hasattr(self, 'test_timer') and self.test_timer:
@@ -681,8 +934,38 @@ class MainWindow(QMainWindow):
             'snr': random.uniform(-10, 10)
         }
         self.handle_processed_data(test_data)
-        self.current_data = test_data  # Zaktualizuj current_data
-        self.update_data()  # Wywołaj aktualizację interfejsu
+        self.current_data = test_data
+        self.update_data()
+
+    def start_map_simulation(self, duration=30):
+        if hasattr(self, 'test_map_timer') and self.test_map_timer:
+            self.test_map_timer.stop()
+
+        self.test_lat = 52.2549
+        self.test_lng = 20.9004
+
+        self.test_map_timer = QtCore.QTimer()
+        self.test_map_timer.setTimerType(QtCore.Qt.PreciseTimer)  # Dokładniejszy timer
+        self.test_map_timer.timeout.connect(self._generate_test_map_data)
+
+        self.test_map_timer.start(1000)
+
+        QtCore.QTimer.singleShot(
+            duration * 1000,
+            lambda: self.stop_random_test() or self.logger.info("Test zakończony")
+        )
+
+        self.logger.info(f"Rozpoczęto test mapy na {duration} sekund")
+
+    def stop_map_simulation(self):
+        if hasattr(self, 'test_map_timer') and self.test_map_timer:
+            self.test_map_timer.stop()
+
+    def _generate_test_map_data(self):
+        """Generuje losowe dane testowe"""
+        self.test_lat += random.uniform(0, 0.001)
+        self.test_lng += random.uniform(0, 0.001)
+        self.set_map(self.test_lat,self.test_lng)
 
     def closeEvent(self, event):
         """Zamykanie aplikacji"""

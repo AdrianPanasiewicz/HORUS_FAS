@@ -12,7 +12,7 @@ class LivePlot(QWidget):
 		super().__init__(parent)
 
 		self.plot_widget = pg.PlotWidget(title=title)
-		self.plot_widget.setBackground('#161a22')
+		self.plot_widget.setBackground(QColor(32, 36, 44))
 		self.plot_widget.setLabel('left', 'Value')
 		self.plot_widget.setLabel('bottom', 'Time')
 		self.plot_widget.setAxisItems({'bottom': pg.DateAxisItem()})

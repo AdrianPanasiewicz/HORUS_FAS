@@ -21,7 +21,7 @@ class NetworkTransmitter:
                 self.partner_connected_event.set()
                 self.logger.info(f"Połączono z serwerem {self.host}:{self.port}")
                 on_connected()
-            except Exception as e:
+            except (ConnectionRefusedError, socket.timeout, OSError) as e:
                 self.logger.error(f"Błąd łączenia z serwerem: {e}")
                 sleep(2)
 

@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QWidget, QSizePolicy,
                              QHBoxLayout, QLabel,
                              QGridLayout, QVBoxLayout, QMessageBox, QInputDialog, QColorDialog, QDialog, QTextBrowser,
-                             QDialogButtonBox, QTableWidget, QTableWidgetItem)
+                             QDialogButtonBox, QTableWidget, QTableWidgetItem, QHeaderView)
 from PyQt5.QtCore import Qt, QTimer, QUrl
 from PyQt5.QtGui import QIcon, QPixmap, QColor
 from PyQt5 import QtCore
@@ -111,7 +111,7 @@ class MainWindow(QMainWindow):
         self.map_view = QWebEngineView()
         self.map_view.setSizePolicy(
             QSizePolicy.Expanding,
-            QSizePolicy.Expanding  # Pionowe rozciąganie
+            QSizePolicy.Expanding
         )
 
         self.set_map(lat=self.default_lat, lng=self.default_lng)
@@ -139,10 +139,8 @@ class MainWindow(QMainWindow):
         middle_plots_column.addWidget(self.roll_plot, 1)
         middle_plots_column.addWidget(self.yaw_plot, 1)
 
-        # Panel boczny
         right_panel = self.create_right_panel()
 
-        # Ustawienie elementów w siatce
         main_layout.addLayout(left_plots_column, 0, 0, 1, 40)
         main_layout.addLayout(middle_plots_column, 0, 41, 1, 40)
         main_layout.addWidget(right_panel, 0, 81, 1, 20)
@@ -159,8 +157,8 @@ class MainWindow(QMainWindow):
         """Tworzy dolny panel z danymi i mapą"""
         panel = QWidget()
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(5, 5, 5, 5)
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(0,0,0,0)
+        main_layout.setSpacing(5)
 
         data_labels = QWidget()
         data_layout = QVBoxLayout()
@@ -198,9 +196,8 @@ class MainWindow(QMainWindow):
 
         self.table.setStyleSheet("font-size: 20px;")
         self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.horizontalHeader().setSectionResizeMode(0, self.table.horizontalHeader().ResizeMode.Stretch)
-        self.table.horizontalHeader().setSectionResizeMode(1, self.table.horizontalHeader().ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
         row = QVBoxLayout()
         row.addWidget(self.table)
@@ -209,8 +206,8 @@ class MainWindow(QMainWindow):
         data_layout.addLayout(row)
         data_labels.setLayout(data_layout)
 
-        main_layout.addWidget(map_widget, 40)
-        main_layout.addWidget(data_labels, 60)
+        main_layout.addWidget(map_widget, 50)
+        main_layout.addWidget(data_labels, 50)
         panel.setLayout(main_layout)
         return panel
 
@@ -264,12 +261,16 @@ class MainWindow(QMainWindow):
 
 
     def set_map(self, lat, lng):
+        figure = folium.Figure(width="100%", height="100%")
+
         self.map = folium.Map(
             location=[lat, lng],
             zoom_start=15,
             control_scale=True,
             tiles='OpenStreetMap'
         )
+
+        figure.add_child(self.map)
 
         folium.Marker(
             [lat, lng],
@@ -281,11 +282,65 @@ class MainWindow(QMainWindow):
         self.map.save(data, close_file=False)
         html = data.getvalue().decode()
 
+        responsive_meta = '''
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                html, body {
+                    width: 100%;
+                    height: 100%;
+                    margin: 0;
+                    padding: 0;
+                }
+                #map {
+                    width: 100%;
+                    height: 100%;
+                }
+                .folium-map {
+                    width: 100% !important;
+                    height: 100% !important;
+                }
+            </style>
+            '''
+
+        html = html.replace('</head>', responsive_meta + '</head>')
         self.map_view.setHtml(html, QUrl(''))
 
     def resizeEvent(self, event):
         """Obsługa zmiany rozmiaru okna"""
         super().resizeEvent(event)
+        QTimer.singleShot(100, self.update_map_view)
+
+    def update_map_view(self):
+        """Update the map view with current HTML"""
+        if hasattr(self, 'map') and self.map:
+            # Regenerate the HTML with current dimensions
+            data = io.BytesIO()
+            self.map.save(data, close_file=False)
+            html = data.getvalue().decode()
+
+            # Add responsive styling
+            responsive_meta = '''
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                html, body {
+                    width: 100%;
+                    height: 100%;
+                    margin: 0;
+                    padding: 0;
+                }
+                #map {
+                    width: 100%;
+                    height: 100%;
+                }
+                .folium-map {
+                    width: 100% !important;
+                    height: 100% !important;
+                }
+            </style>
+            '''
+
+            html = html.replace('</head>', responsive_meta + '</head>')
+            self.map_view.setHtml(html, QUrl(''))
 
     def declare_menus(self):
         self.menu = self.menuBar()

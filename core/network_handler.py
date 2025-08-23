@@ -1,7 +1,7 @@
 import socket
 import json
 import logging
-
+import threading
 
 class NetworkTransmitter:
     def __init__(self, host='192.168.0.66', port=65432):
@@ -9,13 +9,16 @@ class NetworkTransmitter:
         self.port = port
         self.sock = None
         self.logger = logging.getLogger('HORUS_FAS.network_transmitter')
+        self.partner_connected_event = threading.Event()
 
-    def connect(self):
+    def attempt_connection(self, on_connected):
         """Łączy się z serwerem TCP (na Ubuntu)"""
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.connect((self.host, self.port))
+            self.partner_connected_event.set()
             self.logger.info(f"Połączono z serwerem {self.host}:{self.port}")
+            on_connected()
         except Exception as e:
             self.logger.error(f"Błąd łączenia z serwerem: {e}")
 
@@ -37,4 +40,5 @@ class NetworkTransmitter:
             self.sock.close()
             self.sock = None
             self.logger.info("Zamknięto połączenie z serwerem")
+            self.partner_connected_event.clear()
 

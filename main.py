@@ -1,6 +1,7 @@
 import sys
 import logging
 import platform
+import threading
 from PyQt5.QtWidgets import (QApplication, QDialog)
 from gui.main_window import MainWindow
 from core.serial_config import SerialConfigDialog
@@ -31,9 +32,6 @@ def main():
     transmitter = NetworkTransmitter(host='192.168.236.1', port=65432) # Trzeba zobaczyć, jaki jest przydzielony ip network adaptera
     logger.info("NetworkTransmitter zainicjalizowany")
 
-    transmitter.connect()
-    logger.info(f"Połączono z serwerem TCP {transmitter.host}:{transmitter.port}")
-
     config_dialog = SerialConfigDialog()
     if config_dialog.exec_() == QDialog.Accepted:
         config = config_dialog.get_settings()
@@ -59,9 +57,11 @@ def main():
             logger.info(f"Konfiguracja LoRa ustawiona: {config['lora_config']}")
 
     window = MainWindow(config, transmitter)
+
+    threading.Thread(target=transmitter.attempt_connection, args=(window.on_partner_connected,)).start()
+
     window.resize(800, 600)
     window.show()
-
     exit_code = app.exec_()
 
     # Zatrzymanie czytnika portu szeregowego

@@ -28,6 +28,7 @@ class MainWindow(QMainWindow):
     def __init__(self, config, transmitter):
         super().__init__()
         self.transmitter = transmitter
+        self.is_partner_connected = False
 
         self.logger = logging.getLogger('HORUS_FAS.main_window')
         self.logger.info("Inicjalizacja głównego okna")
@@ -49,7 +50,6 @@ class MainWindow(QMainWindow):
             'snr': 0
         }
 
-        # Inicjalizacja mapy
         self.default_lat = 52.2549
         self.default_lng = 20.9004
         self.current_lat = self.current_data['latitude']
@@ -77,9 +77,9 @@ class MainWindow(QMainWindow):
             self.serial.LoraSet(config['lora_config'], config['is_config_selected'])
             self.logger.info(f"Konfiguracja LoRa ustawiona: {config['lora_config']}")
 
-        self.serial.telemetry_received.connect(self.processor.handle_telemetry)
-        self.serial.transmission_info_received.connect(self.processor.handle_transmission_info)
-        self.processor.processed_data_ready.connect(self.handle_processed_data)
+        self.serial.telemetry_received.attempt_connection(self.processor.handle_telemetry)
+        self.serial.transmission_info_received.attempt_connection(self.processor.handle_transmission_info)
+        self.processor.processed_data_ready.attempt_connection(self.handle_processed_data)
 
         # Wykresy
         self.alt_plot = LivePlot(title="Altitude", color='b', timespan=30)
@@ -213,34 +213,55 @@ class MainWindow(QMainWindow):
 
     def setup_status_bar(self):
         self.status_bar_visible = True
+
+        status_container = QWidget()
+        status_layout = QHBoxLayout()
+        status_layout.setContentsMargins(0, 0, 0, 0)
+        status_layout.setSpacing(20)
+        status_container.setLayout(status_layout)
+        status_container.setStyleSheet("background: transparent")
+
+        left_container = QWidget()
+        left_layout = QHBoxLayout()
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(10)
+        left_container.setLayout(left_layout)
+
         self.status_logo = QLabel()
         self.status_logo.setFixedSize(24, 24)
         self.status_logo.setScaledContents(True)
         logo_pixmap = QPixmap(r"gui/resources/black_icon_without_background.png").scaled(30, 30)
-        self.status_logo.setStyleSheet("background: transparent;")
         self.status_logo.setPixmap(logo_pixmap)
-        self.statusBar().addWidget(self.status_logo)
+        left_layout.addWidget(self.status_logo)
 
         current_time = datetime.now().strftime("%H:%M:%S")
         self.status_packet_label = QLabel(f"Last received packet: {current_time} s")
-        self.status_packet_label.setStyleSheet("background: transparent; font-size: 14px;")
-        self.statusBar().addWidget(self.status_packet_label)
+        self.status_packet_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        left_layout.addWidget(self.status_packet_label)
 
-        spacer1 = QLabel()
-        spacer1.setStyleSheet("background: transparent;")
-        self.statusBar().addWidget(spacer1, 1)
+        status_layout.addWidget(left_container, 0, alignment=Qt.AlignLeft)
 
-        self.status_title_label = QLabel("HORUS Flight Analysis Station  \t\t\t")
-        self.status_title_label.setStyleSheet("background: transparent; font-size: 14px; font-weight: bold;")
-        self.statusBar().addWidget(self.status_title_label)
+        self.status_title_label = QLabel("HORUS Flight Analysis Station")
+        self.status_title_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        status_layout.addWidget(self.status_title_label, 1, alignment=Qt.AlignHCenter)
 
-        spacer2 = QLabel()
-        spacer2.setStyleSheet("background: transparent;")
-        self.statusBar().addWidget(spacer2, 1)
+        right_container = QWidget()
+        right_layout = QHBoxLayout()
+        right_layout.setContentsMargins(0,0,0,0)
+        right_layout.setSpacing(10)
+        right_container.setLayout(right_layout)
+
+        self.connection_label = QLabel("Not connected to HORUS CSS")
+        self.connection_label.setStyleSheet("font-size: 14px; font-weight: bold; color: red;")
+        right_layout.addWidget(self.connection_label)
 
         self.heartbeat_placeholder = QLabel("●")
         self.heartbeat_placeholder.setStyleSheet("background: transparent; color: transparent; font-size: 14px;")
-        self.statusBar().addPermanentWidget(self.heartbeat_placeholder)
+        right_layout.addWidget(self.heartbeat_placeholder)
+
+        status_layout.addWidget(right_container, 0, alignment=Qt.AlignRight)
+
+        self.statusBar().addWidget(status_container, 1)
 
         self.setup_heartbeat()
 
@@ -799,8 +820,8 @@ class MainWindow(QMainWindow):
             # 2. Aktualizacja GUI
             self.update_data()
 
-            # 3. Zapis do CSV
-            self.csv_handler.write_row(data)
+            # 3. Zapis do CSV - to powinno być w serial_reader
+            # self.csv_handler.write_row(data)
 
             print(f"DEBUG: Przetworzono dane do wysłania: {data}")
 
@@ -822,9 +843,11 @@ class MainWindow(QMainWindow):
                 }
             }
 
-            print(f"DEBUG: Dane przed wysłaniem: {transmit_data}")
-
-            self.transmitter.send_data(transmit_data)
+            if self.is_partner_connected:
+                self.transmitter.send_data(transmit_data) # To powinno być w process_data
+                self.logger.debug(f"The following data has been send to partner: {transmit_data}")
+            else:
+                self.logger.error("No partner connected")
 
         except Exception as e:
             self.logger.error(f"Błąd w handle_processed_data: {e}")
@@ -832,10 +855,10 @@ class MainWindow(QMainWindow):
     def show_about_app_dialog(self):
         about_text = """
         <div style="text-align: justify;">
-            <h2>HOURS Flight Analysis Station</h2>
+            <h2>HORUS Flight Analysis Station</h2>
             <p><b>Version:</b> 0.1.0</p>
             <p><b>Description:</b> The ground station is responsible for processing and displaying data regarding 
-            the flight of a sounding rocket. It is a subcomponent of a HOURS project, which is also as a part of a 
+            the flight of a sounding rocket. It is a subcomponent of a HORUS project, which is also as a part of a 
             larger LOTUS ONE project Scientific Association of Aviation and Astronautics Students of MUT.</p>
             <p><b>Authors:</b> Adrian Panasiewicz, Filip Sudak</p>
             <p><b>Copyright:</b> © 2025 KNS LiK </p>
@@ -976,7 +999,7 @@ class MainWindow(QMainWindow):
 
         self.test_timer = QtCore.QTimer()
         self.test_timer.setTimerType(QtCore.Qt.PreciseTimer)  # Dokładniejszy timer
-        self.test_timer.timeout.connect(self._generate_test_data)
+        self.test_timer.timeout.attempt_connection(self._generate_test_data)
 
         # 3. Ustawienie interwału (100ms = 0.1s)
         self.test_timer.start(1000)
@@ -1023,7 +1046,7 @@ class MainWindow(QMainWindow):
 
         self.test_map_timer = QtCore.QTimer()
         self.test_map_timer.setTimerType(QtCore.Qt.PreciseTimer)  # Dokładniejszy timer
-        self.test_map_timer.timeout.connect(self._generate_test_map_data)
+        self.test_map_timer.timeout.attempt_connection(self._generate_test_map_data)
 
         self.test_map_timer.start(1000)
 
@@ -1043,6 +1066,18 @@ class MainWindow(QMainWindow):
         self.test_lat += random.uniform(0, 0.001)
         self.test_lng += random.uniform(0, 0.001)
         self.set_map(self.test_lat,self.test_lng)
+
+    def on_partner_connected(self):
+        self.logger.info("HORUS CSS connected to HORUS FAS")
+        self.connection_label.setText("HORUS CSS connected")
+        self.connection_label.setStyleSheet("color: #66FF00; font-weight: bold;")
+        self.is_partner_connected = True
+
+    def on_partner_disconnected(self):
+        self.logger.info("HORUS CSS disconnected from HORUS FAS")
+        self.connection_label.setText("HORUS CSS disconnected")
+        self.connection_label.setStyleSheet("color: red; font-weight: bold;")
+        self.is_partner_connected = False
 
     def closeEvent(self, event):
         """Zamykanie aplikacji"""

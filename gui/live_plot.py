@@ -60,7 +60,7 @@ class LivePlot(QWidget):
 
 		self.toggle_crosshair(False)
 
-		self.plot_widget.scene().sigMouseMoved.connect(self.mouse_moved)
+		self.plot_widget.scene().sigMouseMoved.attempt_connection(self.mouse_moved)
 
 	def create_pen(self):
 		return pg.mkPen(

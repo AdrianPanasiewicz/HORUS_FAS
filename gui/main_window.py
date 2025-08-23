@@ -80,12 +80,30 @@ class MainWindow(QMainWindow):
         self.processor.processed_data_ready.connect(self.handle_processed_data)
 
         # Wykresy
-        self.alt_plot = LivePlot(title="Altitude", color='b', time_window=30, max_points=50000)
-        self.ver_velocity_plot = LivePlot(title="Ver Velocity", color='r', time_window=30, max_points=50000)
-        self.ver_accel_plot = LivePlot(title="Ver Acceleration", color='c', time_window=30, max_points=50000)
-        self.pitch_plot = LivePlot(title="Pitch", color='y', time_window=30, max_points=50000)
-        self.roll_plot = LivePlot(title="Roll", color='g', time_window=30, max_points=50000)
-        self.yaw_plot = LivePlot(title="Yaw", color='w', time_window=30, max_points=50000)
+        self.alt_plot = LivePlot(title="Altitude", color='b', timespan=30)
+        self.ver_velocity_plot = LivePlot(title="Ver Velocity", color='r', timespan=30)
+        self.ver_accel_plot = LivePlot(title="Ver Acceleration", color='c', timespan=30)
+        self.pitch_plot = LivePlot(title="Pitch", color='y', timespan=30)
+        self.roll_plot = LivePlot(title="Roll", color='g', timespan=30)
+        self.yaw_plot = LivePlot(title="Yaw", color='w', timespan=30)
+
+        self.alt_plot.set_x_label("Time [s]")
+        self.alt_plot.set_y_label("Height [m]")
+
+        self.ver_velocity_plot.set_x_label("Time [s]")
+        self.ver_velocity_plot.set_y_label("Vertical Velocity [m/s]")
+
+        self.ver_accel_plot.set_x_label("Time [s]")
+        self.ver_accel_plot.set_y_label("Vertical Acceleration [m/s²]")
+
+        self.pitch_plot.set_x_label("Time [s]")
+        self.pitch_plot.set_y_label("Pitch [°]")
+
+        self.roll_plot.set_x_label("Time [s]")
+        self.roll_plot.set_y_label("Roll [°]")
+
+        self.yaw_plot.set_x_label("Time [s]")
+        self.yaw_plot.set_y_label("Yaw [°]")
 
         # Mapa
         self.initialize_map()
@@ -569,13 +587,14 @@ class MainWindow(QMainWindow):
 
     def update_data(self):
         """Aktualizacja danych na interfejsie"""
-        # Aktualizacja wykresów
-        self.alt_plot.update_plot(self.current_data['altitude'])
-        self.ver_velocity_plot.update_plot(self.current_data['ver_velocity'])
-        self.ver_accel_plot.update_plot(self.current_data['ver_accel'])
-        self.pitch_plot.update_plot(self.current_data['pitch'])
-        self.roll_plot.update_plot(self.current_data['roll'])
-        self.yaw_plot.update_plot(self.current_data['yaw'])
+        timestamp = datetime.now()
+
+        self.alt_plot.add_point(timestamp,self.current_data['altitude'])
+        self.ver_velocity_plot.add_point(timestamp,self.current_data['ver_velocity'])
+        self.ver_accel_plot.add_point(timestamp,self.current_data['ver_accel'])
+        self.pitch_plot.add_point(timestamp,self.current_data['pitch'])
+        self.roll_plot.add_point(timestamp,self.current_data['roll'])
+        self.yaw_plot.add_point(timestamp,self.current_data['yaw'])
 
         self.altitude_label.setText(f"Altitude: {self.current_data['altitude']:.2f} m")
         self.velocity_label.setText(f"Velocity: {self.current_data['ver_velocity']:.2f} m/s")
@@ -618,8 +637,8 @@ class MainWindow(QMainWindow):
             self.yaw_plot
         ]
 
-        for plot in plots:
-            plot.reset_time()  # Reset czasu i danych
+        # for plot in plots:
+        #     plot.reset_time()  # Reset czasu i danych
 
         # 2. Inicjalizacja timera
         if hasattr(self, 'test_timer') and self.test_timer:

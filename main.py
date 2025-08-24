@@ -28,8 +28,6 @@ def main():
 
     app = QApplication(sys.argv)
 
-
-
     config_dialog = SerialConfigDialog()
     if config_dialog.exec_() == QDialog.Accepted:
         config = config_dialog.get_settings()
@@ -59,7 +57,9 @@ def main():
 
     window = MainWindow(config, transmitter)
 
-    threading.Thread(target=transmitter.connect, args=(window.on_partner_connected,)).start()
+    transmitter.subscribe_on_partner_connected(window.on_partner_connected)
+    transmitter.subscribe_on_partner_disconnected(window.on_partner_disconnected)
+    threading.Thread(target=transmitter.connect).start()
 
     window.resize(800, 600)
     window.show()

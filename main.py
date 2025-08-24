@@ -28,33 +28,34 @@ def main():
 
     app = QApplication(sys.argv)
 
-    # DODANE: Inicjalizacja NetworkTransmitter
-    transmitter = NetworkTransmitter(host='192.168.236.1', port=65432) # Trzeba zobaczyć, jaki jest przydzielony ip network adaptera
-    logger.info("NetworkTransmitter zainicjalizowany")
+
 
     config_dialog = SerialConfigDialog()
     if config_dialog.exec_() == QDialog.Accepted:
         config = config_dialog.get_settings()
         logger.info(f"Konfiguracja portu załadowana: {config}")
     else:
-        config = {'port': "", 'baudrate': 9600, 'lora_config': None, 'is_config_selected': True}
+        config = {'port': "", 'baudrate': 9600, 'lora_config': None, 'is_config_selected': True, "network": {'ip_address': "192.168.236.1", "port": "65432"}}
         logger.info("Użytkownik zrezygnował z portu – używam domyślnych ustawień")
 
-        # DODANE: Inicjalizacja SerialReader z przekazaniem transmittera
-        serial_reader = SerialReader(
-            port=config['port'],
-            baudrate=config['baudrate'],
-            transmitter=transmitter
-        )
-        logger.info(f"SerialReader zainicjalizowany na porcie {config['port']}")
+    network_config = config['network']
+    transmitter = NetworkTransmitter(host=network_config['ip_address'], port=int(network_config['port'])) # Trzeba zobaczyć, jaki jest przydzielony ip network adaptera
+    logger.info("NetworkTransmitter zainicjalizowany")
 
-        # DODANE: Uruchomienie odczytu z portu szeregowego
-        serial_reader.start_reading()
-        logger.info("Rozpoczęto odczyt z portu szeregowego")
+    serial_reader = SerialReader(
+        port=config['port'],
+        baudrate=config['baudrate'],
+        transmitter=transmitter
+    )
 
-        if config['lora_config']:
-            serial_reader.LoraSet(config['lora_config'], config['is_config_selected'])
-            logger.info(f"Konfiguracja LoRa ustawiona: {config['lora_config']}")
+    logger.info(f"SerialReader zainicjalizowany na porcie {config['port']}")
+
+    serial_reader.start_reading()
+    logger.info("Rozpoczęto odczyt z portu szeregowego")
+
+    if config['lora_config']:
+        serial_reader.LoraSet(config['lora_config'], config['is_config_selected'])
+        logger.info(f"Konfiguracja LoRa ustawiona: {config['lora_config']}")
 
     window = MainWindow(config, transmitter)
 
@@ -64,11 +65,9 @@ def main():
     window.show()
     exit_code = app.exec_()
 
-    # Zatrzymanie czytnika portu szeregowego
     if 'serial_reader' in locals():
         serial_reader.stop_reading()
 
-    # Zamknięcie połączenia TCP (klient)
     transmitter.close_connection()
 
     logger.info(f"Aplikacja zakończona z kodem {exit_code}")

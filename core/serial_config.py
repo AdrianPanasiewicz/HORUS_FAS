@@ -1,10 +1,12 @@
 import sys
 import logging
+
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (QApplication, QDialog,
                              QVBoxLayout, QHBoxLayout,
                              QLabel,
                              QComboBox, QPushButton,
-                             QGroupBox)
+                             QGroupBox, QLineEdit, QGridLayout)
 from PyQt5.QtGui import QIcon
 import serial.tools.list_ports
 
@@ -61,132 +63,124 @@ class SerialConfigDialog(QDialog):
 
         layout = QVBoxLayout()
 
-        port_layout = QHBoxLayout()
-        port_layout.addWidget(QLabel("Port COM:"))
+        # --- Port Group ---
+        port_group = QGroupBox("Konfiguracja portu")
+        port_layout = QGridLayout()
+
+        port_layout.addWidget(QLabel("Port COM:"), 0, 0)
         self.port_combo = QComboBox()
-        self.port_combo.setStyleSheet("max-width: 130px;")
+        self.port_combo.setFixedWidth(220)
         self.refresh_ports()
-        port_layout.addWidget(self.port_combo)
+        port_layout.addWidget(self.port_combo, 0, 2)
 
         refresh_btn = QPushButton("Odśwież")
         refresh_btn.setFixedWidth(80)
         refresh_btn.clicked.connect(self.refresh_ports)
-        port_layout.addWidget(refresh_btn)
-        layout.addLayout(port_layout)
+        port_layout.addWidget(refresh_btn, 0, 1)
 
-        baud_layout = QHBoxLayout()
-        baud_layout.addWidget(
-            QLabel("Prędkość transmisji:"))
+        port_layout.addWidget(QLabel("Prędkość transmisji:"), 1, 0)
         self.baud_combo = QComboBox()
-        self.baud_combo.addItems(
-            ["9600", "19200", "38400", "57600", "115200"])
+        self.baud_combo.addItems(["9600", "19200", "38400", "57600", "115200"])
         self.baud_combo.setCurrentText("9600")
-        baud_layout.addWidget(self.baud_combo)
-        layout.addLayout(baud_layout)
+        self.port_combo.setFixedWidth(220)
+        port_layout.addWidget(self.baud_combo, 1, 2)
 
+        port_group.setLayout(port_layout)
+        layout.addWidget(port_group)
+
+        # --- Server Group ---
+        server_group = QGroupBox("Konfiguracja serwera")
+        server_layout = QGridLayout()
+
+        server_layout.addWidget(QLabel("Adres IP serwera:"), 0, 0)
+        self.ip_input = QLineEdit()
+        self.ip_input.setText("192.168.236.1")
+        self.ip_input.setFixedWidth(220)
+        server_layout.addWidget(self.ip_input, 0, 1, alignment=Qt.AlignRight)
+
+        server_layout.addWidget(QLabel("Port serwera:"), 1, 0)
+        self.port_input = QLineEdit()
+        self.port_input.setText("65432")
+        self.port_input.setFixedWidth(220)
+        server_layout.addWidget(self.port_input, 1, 1,  alignment=Qt.AlignRight)
+
+        server_group.setLayout(server_layout)
+        layout.addWidget(server_group)
+
+        # --- LoRa Group ---
         lora_group = QGroupBox("Konfiguracja LoRa")
-        lora_layout = QVBoxLayout()
+        lora_layout = QGridLayout()
 
-        freq_layout = QHBoxLayout()
-        freq_layout.addWidget(
-            QLabel("Częstotliwość (F) (MHz):"))
+        lora_layout.addWidget(QLabel("Częstotliwość (F) (MHz):"), 0, 0)
         self.freq_combo = QComboBox()
         self.freq_combo.addItems(["433", "868", "915"])
         self.freq_combo.setCurrentText("868")
-        freq_layout.addWidget(self.freq_combo)
-        lora_layout.addLayout(freq_layout)
+        lora_layout.addWidget(self.freq_combo, 0, 1)
 
-        sf_layout = QHBoxLayout()
-        sf_layout.addWidget(
-            QLabel("Spreading factor (SF):"))
+        lora_layout.addWidget(QLabel("Spreading factor (SF):"), 1, 0)
         self.sf_combo = QComboBox()
         self.sf_combo.addItems(["7", "8", "9", "10", "11", "12"])
         self.sf_combo.setCurrentText("7")
-        sf_layout.addWidget(self.sf_combo)
-        lora_layout.addLayout(sf_layout)
+        lora_layout.addWidget(self.sf_combo, 1, 1)
 
-        bw_layout = QHBoxLayout()
-        bw_layout.addWidget(
-            QLabel("Szerokość pasma (BW) (kHz):"))
+        lora_layout.addWidget(QLabel("Szerokość pasma (BW) (kHz):"), 2, 0)
         self.bw_combo = QComboBox()
         self.bw_combo.addItems(["125", "250", "500"])
         self.bw_combo.setCurrentText("250")
-        bw_layout.addWidget(self.bw_combo)
-        lora_layout.addLayout(bw_layout)
+        lora_layout.addWidget(self.bw_combo, 2, 1)
 
-        txpr_layout = QHBoxLayout()
-        txpr_layout.addWidget(QLabel("Preamble nadawania (TXPR):"))
+        lora_layout.addWidget(QLabel("Preamble nadawania (TXPR):"), 3, 0)
         self.txpr_combo = QComboBox()
-        self.txpr_combo.addItems(
-            ["7", "8", "9", "10", "11", "12"])
+        self.txpr_combo.addItems(["7", "8", "9", "10", "11", "12"])
         self.txpr_combo.setCurrentText("8")
-        txpr_layout.addWidget(self.txpr_combo)
-        lora_layout.addLayout(txpr_layout)
+        lora_layout.addWidget(self.txpr_combo, 3, 1)
 
-        rxpr_layout = QHBoxLayout()
-        rxpr_layout.addWidget(QLabel("Preamble odbierania (RXPR):"))
+        lora_layout.addWidget(QLabel("Preamble odbierania (RXPR):"), 4, 0)
         self.rxpr_combo = QComboBox()
         self.rxpr_combo.addItems(["7", "8", "9", "10", "11", "12"])
         self.rxpr_combo.setCurrentText("8")
-        rxpr_layout.addWidget(self.rxpr_combo)
-        lora_layout.addLayout(rxpr_layout)
+        lora_layout.addWidget(self.rxpr_combo, 4, 1)
 
-        pow_layout = QHBoxLayout()
-        pow_layout.addWidget(QLabel("Moc nadawania (POW) (dBm):"))
+        lora_layout.addWidget(QLabel("Moc nadawania (POW) (dBm):"), 5, 0)
         self.pow_combo = QComboBox()
-        self.pow_combo.addItems(
-            ["2", "5", "8", "11", "14", "17", "20"])
+        self.pow_combo.addItems(["2", "5", "8", "11", "14", "17", "20"])
         self.pow_combo.setCurrentText("14")
-        pow_layout.addWidget(self.pow_combo)
-        lora_layout.addLayout(pow_layout)
+        lora_layout.addWidget(self.pow_combo, 5, 1)
 
-        crc_layout = QHBoxLayout()
-        crc_layout.addWidget(QLabel("Suma kontrolna (CRC):"))
+        lora_layout.addWidget(QLabel("Suma kontrolna (CRC):"), 6, 0)
         self.crc_combo = QComboBox()
-        self.crc_combo.addItems(
-            ["ON", "OFF"])
+        self.crc_combo.addItems(["ON", "OFF"])
         self.crc_combo.setCurrentText("ON")
-        crc_layout.addWidget(self.crc_combo)
-        lora_layout.addLayout(crc_layout)
+        lora_layout.addWidget(self.crc_combo, 6, 1)
 
-        iq_layout = QHBoxLayout()
-        iq_layout.addWidget(QLabel("Odwrócenie bitu (IQ):"))
+        lora_layout.addWidget(QLabel("Odwrócenie bitu (IQ):"), 7, 0)
         self.iq_combo = QComboBox()
-        self.iq_combo.addItems(
-            ["ON", "OFF"])
+        self.iq_combo.addItems(["ON", "OFF"])
         self.iq_combo.setCurrentText("OFF")
-        iq_layout.addWidget(self.iq_combo)
-        lora_layout.addLayout(iq_layout)
+        lora_layout.addWidget(self.iq_combo, 7, 1)
 
-        net_layout = QHBoxLayout()
-        net_layout.addWidget(QLabel("Tryb LoRaWAN (NET):"))
+        lora_layout.addWidget(QLabel("Tryb LoRaWAN (NET):"), 8, 0)
         self.net_combo = QComboBox()
-        self.net_combo.addItems(
-            ["ON", "OFF"])
+        self.net_combo.addItems(["ON", "OFF"])
         self.net_combo.setCurrentText("OFF")
-        net_layout.addWidget(self.net_combo)
-        lora_layout.addLayout(net_layout)
+        lora_layout.addWidget(self.net_combo, 8, 1)
 
         lora_group.setLayout(lora_layout)
         layout.addWidget(lora_group)
 
+        # --- Buttons ---
         btn_layout = QHBoxLayout()
         connect_btn = QPushButton("Połącz i konfiguruj")
         connect_btn.clicked.connect(self.accept)
-        connect_btn.setStyleSheet(
-            "background-color: #27ae60;")
+        connect_btn.setStyleSheet("background-color: #27ae60;")
 
-        connect_no_lora_btn = QPushButton(
-            "Połącz bez konfiguracji")
-        connect_no_lora_btn.clicked.connect(
-            self.accept_no_lora)
-        connect_no_lora_btn.setStyleSheet(
-            "background-color: #2980b9;")
+        connect_no_lora_btn = QPushButton("Połącz bez konfiguracji")
+        connect_no_lora_btn.clicked.connect(self.accept_no_lora)
+        connect_no_lora_btn.setStyleSheet("background-color: #2980b9;")
 
         cancel_btn = QPushButton("Kontynuuj bez portu")
         cancel_btn.clicked.connect(self.reject)
-        cancel_btn.setStyleSheet(
-            "background-color: #e74c3c;")
+        cancel_btn.setStyleSheet("background-color: #e74c3c;")
 
         btn_layout.addWidget(connect_btn)
         btn_layout.addWidget(connect_no_lora_btn)
@@ -194,6 +188,25 @@ class SerialConfigDialog(QDialog):
         layout.addLayout(btn_layout)
 
         self.setLayout(layout)
+
+        self.ip_input.setWhatsThis("Sprawdź adres IP komputera używając 'ipconfig' (Windows) lub 'ifconfig' / 'ip addr' (Linux/Mac) w terminalu.")
+        self.port_input.setWhatsThis("Ustaw wysoką wartość, aby nic nie kolidowało.")
+        self.port_combo.setWhatsThis("Wybierz port COM, do którego podłączony jest moduł.")
+        refresh_btn.setWhatsThis("Kliknij, aby odświeżyć listę dostępnych portów szeregowych.")
+        self.baud_combo.setWhatsThis("Wybierz prędkość transmisji (baud rate) dla komunikacji szeregowej.")
+        self.freq_combo.setWhatsThis("Wybierz częstotliwość pracy LoRa (MHz).")
+        self.sf_combo.setWhatsThis(
+            "Wybierz spreading factor (SF) - im większa wartość, tym większy zasięg i mniejsza przepustowość.")
+        self.bw_combo.setWhatsThis("Wybierz szerokość pasma LoRa (BW) w kHz.")
+        self.txpr_combo.setWhatsThis("Wybierz długość preambuły nadawczej (TXPR).")
+        self.rxpr_combo.setWhatsThis("Wybierz długość preambuły odbiorczej (RXPR).")
+        self.pow_combo.setWhatsThis("Ustaw moc nadawania LoRa (w dBm).")
+        self.crc_combo.setWhatsThis("Włącz lub wyłącz sumę kontrolną CRC.")
+        self.iq_combo.setWhatsThis("Ustawienie odwrócenia bitów IQ (ON/OFF).")
+        self.net_combo.setWhatsThis("Wybierz tryb LoRaWAN (ON - aktywny, OFF - klasyczny tryb LoRa).")
+        connect_btn.setWhatsThis("Połącz z portem szeregowym i skonfiguruj moduł LoRa według ustawień.")
+        connect_no_lora_btn.setWhatsThis("Połącz tylko z portem szeregowym bez konfiguracji LoRa.")
+        cancel_btn.setWhatsThis("Zamknij okno i kontynuuj bez połączenia z portem szeregowym.")
 
     def refresh_ports(self):
         self.port_combo.clear()
@@ -210,7 +223,7 @@ class SerialConfigDialog(QDialog):
     def accept(self):
         self._get_settings()
         self.logger.info(
-            f"Wybrano konfigurację: port={self.port_name}, baudrate={self.baud_rate}, lora={self.lora_config}")
+            f"Wybrano konfigurację: port={self.port_name}, baudrate={self.baud_rate}, lora={self.lora_config}, network={self.network_config}")
         self.is_config_selected = True
         super().accept()
 
@@ -218,7 +231,7 @@ class SerialConfigDialog(QDialog):
         self.lora_config = None
         self._get_settings()
         self.logger.info(
-            f"Wybrano konfigurację bez LoRa: port={self.port_name}, baudrate={self.baud_rate}")
+            f"Wybrano konfigurację bez LoRa: port={self.port_name}, baudrate={self.baud_rate},  network={self.network_config}")
         self.is_config_selected = False
         super().accept()
 
@@ -228,6 +241,10 @@ class SerialConfigDialog(QDialog):
         else:
             self.port_name = self.port_combo.currentText()
         self.baud_rate = int(self.baud_combo.currentText())
+        self.network_config = {
+            'ip_address': self.ip_input.currentText(),
+            'port': self.ip_port.currentText()
+        }
         if self.lora_config is not None:
             self.lora_config = {
                 'frequency': self.freq_combo.currentText(),
@@ -245,6 +262,7 @@ class SerialConfigDialog(QDialog):
         return {
             'port': self.port_name,
             'baudrate': self.baud_rate,
+            'network': self.network_config,
             'lora_config': self.lora_config,
             'is_config_selected': self.is_config_selected
         }

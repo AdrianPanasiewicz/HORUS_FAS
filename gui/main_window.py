@@ -1065,16 +1065,18 @@ class MainWindow(QMainWindow):
         self.set_map(self.test_lat,self.test_lng)
 
     def on_partner_connected(self):
-        self.logger.info("HORUS CSS connected to HORUS FAS")
-        self.connection_label.setText("   HORUS CSS connected")
-        self.connection_label.setStyleSheet("color: #66FF00; font-weight: bold;")
-        self.is_partner_connected = True
+        if hasattr(self, "connection_label") and self.connection_label is not None:
+            self.logger.info("HORUS CSS connected to HORUS FAS")
+            self.connection_label.setText("   HORUS CSS connected")
+            self.connection_label.setStyleSheet("color: #66FF00; font-weight: bold;")
+            self.is_partner_connected = True
 
     def on_partner_disconnected(self):
-        self.logger.info("HORUS CSS disconnected from HORUS FAS")
-        self.connection_label.setText("HORUS CSS disconnected")
-        self.connection_label.setStyleSheet("color: red; font-weight: bold;")
-        self.is_partner_connected = False
+        if hasattr(self, "connection_label") and self.connection_label is not None:
+            self.logger.info("HORUS CSS disconnected from HORUS FAS")
+            self.connection_label.setText("HORUS CSS disconnected")
+            self.connection_label.setStyleSheet("color: red; font-weight: bold;")
+            self.is_partner_connected = False
 
     def handle_processed_data_correct(self, data):
         pass
@@ -1268,4 +1270,7 @@ class MainWindow(QMainWindow):
         self.csv_handler.close_file()
         if hasattr(self, 'test_timer') and self.test_timer:
             self.test_timer.stop()
+        if hasattr(self, 'transmitter'):
+            self.transmitter.unsubscribe_on_partner_connected(self.on_partner_connected)
+            self.transmitter.unsubscribe_on_partner_disconnected(self.on_partner_disconnected)
         super().closeEvent(event)

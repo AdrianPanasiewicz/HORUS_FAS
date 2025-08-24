@@ -20,7 +20,7 @@ class NetworkTransmitter:
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.sock.connect((self.host, self.port))
                 self.logger.info(f"Połączono z serwerem {self.host}:{self.port}")
-                threading.Thread(target=self.heartbeat_check).start()
+                threading.Thread(target=self.heartbeat_check, daemon=True).start()
                 for on_connected in self.on_partner_connected:
                     on_connected()
             except (ConnectionRefusedError, socket.timeout, OSError) as e:
@@ -58,6 +58,14 @@ class NetworkTransmitter:
     def subscribe_on_partner_disconnected(self,callback):
         self.on_partner_disconnected.append(callback)
         self.logger.info(f"Added {callback} as a subscriber to on_partner_disconnected.")
+
+    def unsubscribe_on_partner_connected(self, callback):
+        if callback in self.on_partner_connected:
+            self.on_partner_connected.remove(callback)
+
+    def unsubscribe_on_partner_disconnected(self, callback):
+        if callback in self.on_partner_disconnected:
+            self.on_partner_disconnected.remove(callback)
 
     def close_connection(self):
         if self.sock:

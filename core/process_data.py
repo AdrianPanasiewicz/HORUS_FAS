@@ -31,6 +31,7 @@ class ProcessData(QObject):
                     f"Połączone dane do wysłania: {combined_data}")
                 self.processed_data_ready.emit(
                     combined_data)
+
             except Exception as e:
                 self.logger.exception(
                     f"Błąd podczas łączenia danych telemetrycznych i transmisyjnych: {e}")

@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (QApplication, QDialog)
 from gui.main_window import MainWindow
 from core.serial_config import SerialConfigDialog
 from core.utils import Utils
+from core.config import Config
 from core.gpio_reader import GpioReader
 from core.network_handler import NetworkTransmitter
 from core.serial_reader import SerialReader
@@ -34,7 +35,8 @@ def main():
         config = config_dialog.get_settings()
         logger.info(f"Konfiguracja portu załadowana: {config}")
     else:
-        config = {'port': "", 'baudrate': 9600, 'lora_config': None, 'is_config_selected': True, "network": {'ip_address': "192.168.236.1", "port": "65432"}}
+        config = {'port': "", 'baudrate': Config.DEFAULT_BAUD_RATE, 'lora_config': None, 'is_config_selected': True, "network":
+            {'ip_address': Config.DEFAULT_IP_PORT, "port": Config.DEFAULT_IP_PORT}}
         logger.info("Użytkownik zrezygnował z portu – używam domyślnych ustawień")
 
     network_config = config['network']

@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (QApplication, QDialog)
 from gui.main_window import MainWindow
 from core.serial_config import SerialConfigDialog
 from core.utils import Utils
+from core.gpio_reader import GpioReader
 from core.network_handler import NetworkTransmitter
 from core.serial_reader import SerialReader
 import os
@@ -60,6 +61,8 @@ def main():
     transmitter.subscribe_on_partner_connected(window.on_partner_connected)
     transmitter.subscribe_on_partner_disconnected(window.on_partner_disconnected)
     threading.Thread(target=transmitter.connect).start()
+
+    gpio_reader = GpioReader(Config.DEFAULT_GPIO_PIN)
 
     window.resize(800, 600)
     window.show()

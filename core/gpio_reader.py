@@ -43,4 +43,5 @@ class GpioReader(QObject):
         self.button_held_subscribers.append(callback)
 
     def unsubscribe_button_held(self, callback):
-        self.button_held_subscribers.remove(callback)
+        if callback in self.button_held_subscribers:
+            self.button_held_subscribers.remove(callback)

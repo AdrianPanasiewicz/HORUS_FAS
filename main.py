@@ -1,7 +1,10 @@
+import json
 import sys
 import logging
 import platform
 import threading
+from functools import partial
+
 from PyQt5.QtWidgets import (QApplication, QDialog)
 from gui.main_window import MainWindow
 from core.serial_config import SerialConfigDialog
@@ -59,11 +62,16 @@ def main():
         logger.info(f"Konfiguracja LoRa ustawiona: {config['lora_config']}")
 
     gpio_reader = GpioReader(Config.DEFAULT_GPIO_PIN)
+    gpio_reader.subscribe_button_held(partial(serial_reader.send_data, "abort"))
 
     window = MainWindow(config, transmitter, gpio_reader)
 
     transmitter.subscribe_on_partner_connected(window.on_partner_connected)
     transmitter.subscribe_on_partner_disconnected(window.on_partner_disconnected)
+    transmitter.subscribe_on_data_received(
+        lambda data: serial_reader.send_data(json.dumps(data))
+    )
+
     threading.Thread(target=transmitter.connect).start()
 
     window.resize(800, 600)

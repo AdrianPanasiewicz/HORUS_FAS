@@ -12,6 +12,9 @@ class NetworkTransmitter:
         self.logger = logging.getLogger('HORUS_FAS.network_transmitter')
         self.on_partner_connected = []
         self.on_partner_disconnected = []
+        self.on_data_received = []
+
+        self._stop_event = threading.Event()
 
     def connect(self):
         """Łączy się z serwerem TCP (na Ubuntu)"""
@@ -51,6 +54,30 @@ class NetworkTransmitter:
                 break
         self.connect()
 
+    def receive_loop(self):
+        buffer = b""
+        while self.sock and not self._stop_event.is_set():
+            try:
+                chunk = self.sock.recv(4096)
+                if not chunk:
+                    self.logger.warning("Serwer zamknął połączenie")
+                    self.close_connection()
+                    break
+                buffer += chunk
+                while b"\n" in buffer:
+                    line, buffer = buffer.split(b"\n", 1)
+                    try:
+                        data = json.loads(line.decode("utf-8"))
+                        self.logger.debug(f"Odebrano dane: {data}")
+                        for cb in self.on_data_received:
+                            cb(data)
+                    except json.JSONDecodeError as e:
+                        self.logger.error(f"Błąd dekodowania JSON: {e}")
+            except (ConnectionResetError, OSError) as e:
+                self.logger.error(f"Błąd odbierania danych: {e}")
+                self.close_connection()
+                break
+
     def subscribe_on_partner_connected(self,callback):
         self.on_partner_connected.append(callback)
         self.logger.info(f"Added {callback} as a subscriber to on_partner_connected.")
@@ -58,6 +85,9 @@ class NetworkTransmitter:
     def subscribe_on_partner_disconnected(self,callback):
         self.on_partner_disconnected.append(callback)
         self.logger.info(f"Added {callback} as a subscriber to on_partner_disconnected.")
+
+    def subscribe_on_data_received(self, callback):
+        self.on_data_received.append(callback)
 
     def unsubscribe_on_partner_connected(self, callback):
         if callback in self.on_partner_connected:
@@ -67,8 +97,17 @@ class NetworkTransmitter:
         if callback in self.on_partner_disconnected:
             self.on_partner_disconnected.remove(callback)
 
+    def unsubscribe_on_data_received(self, callback):
+        if callback in self.on_data_received:
+            self.on_data_received.remove(callback)
+
     def close_connection(self):
         if self.sock:
+            self._stop_event.set()
+            try:
+                self.sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
             self.sock.close()
             self.sock = None
             self.logger.info("Zamknięto połączenie z serwerem")

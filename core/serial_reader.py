@@ -169,3 +169,16 @@ class SerialReader(QObject):
             self.logger.info("Konfiguracja LoRa zakończona pomyślnie")
         except Exception as e:
             self.logger.error(f"Błąd podczas konfiguracji LoRa: {e}")
+
+    def send_data(self, data: str):
+        if self.ser is None or not self.ser.is_open:
+            self.logger.warning("Port szeregowy nie jest dostępny – nie wysyłam")
+            return
+
+        try:
+            if not data.endswith("\r\n"):
+                data += "\r\n"
+            self.ser.write(data.encode("utf-8"))
+            self.logger.info(f"Wysłano przez UART: {data.strip()}")
+        except Exception as e:
+            self.logger.error(f"Błąd wysyłania danych przez UART: {e}")

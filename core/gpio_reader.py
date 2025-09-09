@@ -7,10 +7,14 @@ from gpiozero import Button, GPIODeviceError
 from gpiozero.pins.mock import MockFactory
 
 class GpioReader(QObject):
-    held = pyqtSignal()  # Qt signal for when the button is held
+    held = pyqtSignal()
+
+
 
     def __init__(self, pin_number):
         super().__init__()
+        self.button_held_subscribers = []
+
         self.logger = logging.getLogger("HORUS_FAS.gpio_reader")
 
         try:
@@ -24,8 +28,19 @@ class GpioReader(QObject):
             self.button = Button(pin_number)
             self.logger.info(f"Initialized Button on pin {pin_number} with MockFactory.")
 
-        self.button.when_held = self._when_button_held_callback
+        self.button.when_held = self.button_held
 
-    def _when_button_held_callback(self):
+    def button_held(self):
+        self._when_button_held_qt_callback()
+        for subscriber in self.button_held_subscribers:
+            subscriber()
+
+    def _when_button_held_qt_callback(self):
         self.logger.debug("Button held event triggered.")
         self.held.emit()
+
+    def subscribe_button_held(self, callback):
+        self.button_held_subscribers.append(callback)
+
+    def unsubscribe_button_held(self, callback):
+        self.button_held_subscribers.remove(callback)

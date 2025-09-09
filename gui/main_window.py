@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import (QMainWindow,
                              QDialogButtonBox, QTableWidget, QTableWidgetItem, QHeaderView)
 from PyQt5.QtCore import Qt, QTimer, QUrl
 from PyQt5.QtGui import QIcon, QPixmap, QColor
+from gpiozero.pins.mock import MockFactory
 from PyQt5 import QtCore
 from serial.tools import list_ports
 import folium
@@ -25,7 +26,7 @@ import random
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, config, transmitter):
+    def __init__(self, config, transmitter, gpio_reader):
         super().__init__()
         self.transmitter = transmitter
         self.is_partner_connected = False
@@ -56,6 +57,7 @@ class MainWindow(QMainWindow):
         self.current_lng = self.current_data['longitude']
         self.map = None
         self.map_view = None
+        self.mission_aborted = False
 
         self.csv_handler = CsvHandler()
         self.logger.info(
@@ -80,6 +82,9 @@ class MainWindow(QMainWindow):
         self.serial.telemetry_received.connect(self.processor.handle_telemetry)
         self.serial.transmission_info_received.connect(self.processor.handle_transmission_info)
         self.processor.processed_data_ready.connect(self.handle_processed_data)
+
+        self.gpio_reader = gpio_reader
+        self.gpio_reader.held.connect(self.abort_mission_pressed)
 
         # Wykresy
         self.alt_plot = LivePlot(title="Altitude", color='b', timespan=30)
@@ -460,6 +465,13 @@ class MainWindow(QMainWindow):
         self.test_menu.addAction("Start Map Simulation", self.start_map_simulation)
         self.test_menu.addAction("Stop Map Simulation", self.stop_map_simulation)
 
+        self.test_menu.addSeparator()
+
+        self.abort_button_sim = self.test_menu.addAction("Simulate Abort Switch Toggle")
+        self.abort_button_sim.setCheckable(True)
+        self.abort_button_sim.setChecked(False)
+        self.abort_button_sim.triggered.connect(self.simulate_button_held)
+
         self.themes = {
             "Dark Blue": "dark_blue.qss",
             "Gray": "gray.qss",
@@ -673,6 +685,34 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.logger.error(f"Error exporting plots: {str(e)}")
             QMessageBox.critical(self, "Export Error", f"Failed to export plots: {str(e)}")
+
+    def abort_mission_pressed(self):
+        current_time = datetime.now().strftime("%H:%M:%S")
+
+        self.status_title_label.setText(f"<span style='color: red;'>Mission aborted</span>")
+
+        self.logger.info(f"Abort mission button pressed.")
+
+        self.mission_aborted = True
+
+    def simulate_button_held(self):
+        try:
+            pin_factory = type(self.gpio_reader.button.pin.factory)
+            if pin_factory is not MockFactory:
+                self.logger.warning("Cannot simulate button press: real GPIO backend in use.")
+                return
+
+            pin = self.gpio_reader.button.pin
+
+            if pin.state:
+                pin.drive_low()  # press
+                self.logger.info("Simulated button press (drive_low).")
+            else:
+                pin.drive_high()
+                self.logger.info("Simulated button release (drive_high).")
+
+        except Exception as e:
+            self.logger.error(f"Failed to simulate button press: {e}")
 
     def update_map_view(self):
         pass

@@ -58,13 +58,13 @@ def main():
         serial_reader.LoraSet(config['lora_config'], config['is_config_selected'])
         logger.info(f"Konfiguracja LoRa ustawiona: {config['lora_config']}")
 
-    window = MainWindow(config, transmitter)
+    gpio_reader = GpioReader(Config.DEFAULT_GPIO_PIN)
+
+    window = MainWindow(config, transmitter, gpio_reader)
 
     transmitter.subscribe_on_partner_connected(window.on_partner_connected)
     transmitter.subscribe_on_partner_disconnected(window.on_partner_disconnected)
     threading.Thread(target=transmitter.connect).start()
-
-    gpio_reader = GpioReader(Config.DEFAULT_GPIO_PIN)
 
     window.resize(800, 600)
     window.show()

@@ -12,7 +12,7 @@ import serial.tools.list_ports
 
 
 class SerialConfigDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, default_ip_address="192.168.154.1"):
         super().__init__(parent)
         self.logger = logging.getLogger('HORUS_FAS.serial_config')
         self.setWindowTitle(
@@ -96,7 +96,7 @@ class SerialConfigDialog(QDialog):
 
         server_layout.addWidget(QLabel("Adres IP serwera:"), 0, 0)
         self.ip_input = QLineEdit()
-        self.ip_input.setText("192.168.236.1")
+        self.ip_input.setText(default_ip_address)
         self.ip_input.setFixedWidth(220)
         server_layout.addWidget(self.ip_input, 0, 1, alignment=Qt.AlignRight)
 

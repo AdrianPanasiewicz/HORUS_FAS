@@ -83,6 +83,8 @@ def main():
     transmitter.subscribe_on_partner_connected(window.on_partner_connected)
     transmitter.subscribe_on_partner_disconnected(window.on_partner_disconnected)
     transmitter.subscribe_on_data_received(lambda data: serial_reader.send_data(json.dumps(data)))
+    # transmitter.subscribe_on_data_received(lambda d: print("Received:", d)) # it receives the data
+
     logger.debug("NetworkTransmitter callbacks subscribed")
 
     connection_thread = threading.Thread(target=transmitter.connect, daemon=False)
@@ -115,7 +117,6 @@ if __name__ == "__main__":
     elif operational_system == 'Linux':
         os.environ["QT_QPA_PLATFORM"] = "xcb"
 
-    logging.basicConfig(level=logging.DEBUG)
     startup_logger = logging.getLogger('HORUS_FAS_logger')
     startup_logger.debug("Detected OS: %s, QT_QPA_PLATFORM set to %s", operational_system, os.environ.get("QT_QPA_PLATFORM"))
 

@@ -83,6 +83,8 @@ class MainWindow(QMainWindow):
         self.serial.transmission_info_received.connect(self.processor.handle_transmission_info)
         self.processor.processed_data_ready.connect(self.handle_processed_data)
 
+        self.transmitter.data_received_signal.connect(self.abort_mission_pressed)
+
         self.gpio_reader = gpio_reader
         self.gpio_reader.held.connect(self.abort_mission_pressed)
 
@@ -689,10 +691,10 @@ class MainWindow(QMainWindow):
     def abort_mission_pressed(self):
         current_time = datetime.now().strftime("%H:%M:%S")
 
-        self.status_title_label.setText(f"<span style='color: red;'>Mission aborted</span>")
+        self.connection_label.setText("               Mission aborted")
+        self.connection_label.setStyleSheet("color: red; font-weight: bold;")
 
         self.logger.info(f"Abort mission button pressed.")
-
         self.mission_aborted = True
 
     def simulate_button_held(self):
@@ -1015,7 +1017,7 @@ class MainWindow(QMainWindow):
             f"{self.current_data['status']};{self.current_data['latitude']};"
             f"{self.current_data['longitude']}"
         )
-        self.logger.debug(f"Odebrano dane: {msg}")
+        # self.logger.debug(f"Odebrano dane: {msg}")
 
     def start_random_test(self, duration=120):
         """Rozpoczyna test z losowymi wartościami na wszystkich wykresach"""

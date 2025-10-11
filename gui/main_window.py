@@ -991,17 +991,27 @@ class MainWindow(QMainWindow):
         """Aktualizacja danych na interfejsie"""
         timestamp = datetime.now()
 
-        self.alt_plot.add_point(timestamp,self.current_data['altitude'])
-        self.ver_velocity_plot.add_point(timestamp,self.current_data['ver_velocity'])
-        # self.ver_accel_plot.add_point(timestamp,self.current_data['ver_accel'])
-        self.pitch_plot.add_point(timestamp,self.current_data['pitch'])
-        self.roll_plot.add_point(timestamp,self.current_data['roll'])
-        self.yaw_plot.add_point(timestamp,self.current_data['yaw'])
+        if not hasattr(self, 'previous_data'):
+            self.previous_data = {}
+
+        if self.current_data['altitude'] != self.previous_data.get('altitude'):
+            self.alt_plot.add_point(timestamp, self.current_data['altitude'])
+
+        if self.current_data['ver_velocity'] != self.previous_data.get('ver_velocity'):
+            self.ver_velocity_plot.add_point(timestamp, self.current_data['ver_velocity'])
+
+        if self.current_data['pitch'] != self.previous_data.get('pitch'):
+            self.pitch_plot.add_point(timestamp, self.current_data['pitch'])
+
+        if self.current_data['roll'] != self.previous_data.get('roll'):
+            self.roll_plot.add_point(timestamp, self.current_data['roll'])
+
+        if self.current_data['yaw'] != self.previous_data.get('yaw'):
+            self.yaw_plot.add_point(timestamp, self.current_data['yaw'])
 
         values = [
             f"{self.current_data['altitude']:.2f} m",
             f"{self.current_data['ver_velocity']:.2f} m/s",
-            # f"{self.current_data['ver_accel']:.2f} m/s²",
             f"{self.current_data['pitch']:.2f}°",
             f"{self.current_data['roll']:.2f}°",
             f"{self.current_data['yaw']:.2f}°",
@@ -1010,7 +1020,9 @@ class MainWindow(QMainWindow):
         ]
 
         for i, value in enumerate(values):
-            self.table.setItem(i, 1, QTableWidgetItem(value))
+            current_item = self.table.item(i, 1)
+            if current_item is None or current_item.text() != value:
+                self.table.setItem(i, 1, QTableWidgetItem(value))
 
         self.now_str = datetime.now().strftime("%H:%M:%S")
         msg = (
@@ -1019,7 +1031,8 @@ class MainWindow(QMainWindow):
             f"{self.current_data['status']};{self.current_data['latitude']};"
             f"{self.current_data['longitude']}"
         )
-        # self.logger.debug(f"Odebrano dane: {msg}")
+
+        self.previous_data = self.current_data.copy()
 
     def start_random_test(self, duration=120):
         """Rozpoczyna test z losowymi wartościami na wszystkich wykresach"""

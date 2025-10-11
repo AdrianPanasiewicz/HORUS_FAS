@@ -83,8 +83,8 @@ class SerialReader(QObject):
                         telemetry = {
                             'pitch': float(data[0]),
                             'roll': float(data[1]),
-                            'heading': float(data[2]),
-                            'vertical_velocity': float(data[3]),
+                            'yaw': float(data[2]),
+                            'ver_velocity': float(data[3]),
                             'altitude': float(data[4]),
                             'rbs': float(data[5])
                         }

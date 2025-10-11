@@ -38,7 +38,7 @@ class MainWindow(QMainWindow):
 
         self.current_data = {
             'ver_velocity': 0.0,
-            'ver_accel': 0.0,
+            # 'ver_accel': 0.0,
             'altitude': 0.0,
             'pitch': 0.0,
             'roll': 0.0,
@@ -46,9 +46,8 @@ class MainWindow(QMainWindow):
             'status': 0,
             'latitude': 52.2549,
             'longitude': 20.9004,
-            'len': 0,
-            'rssi': 0,
-            'snr': 0
+            'rbs': 0,
+            # 'snr': 0
         }
 
         self.default_lat = 52.2549
@@ -182,7 +181,7 @@ class MainWindow(QMainWindow):
         map_widget.setLayout(map_layout)
 
         self.table = QTableWidget()
-        self.table.setRowCount(8)
+        self.table.setRowCount(7)
         self.table.setColumnCount(2)
         self.table.setHorizontalHeaderLabels(["Parameter", "Value"])
 
@@ -190,7 +189,7 @@ class MainWindow(QMainWindow):
         values = [
             f"{self.current_data['altitude']:.2f} m",
             f"{self.current_data['ver_velocity']:.2f} m/s",
-            f"{self.current_data['ver_accel']:.2f} m/s²",
+            # f"{self.current_data['ver_accel']:.2f} m/s²",
             f"{self.current_data['pitch']:.2f}°",
             f"{self.current_data['roll']:.2f}°",
             f"{self.current_data['yaw']:.2f}°",
@@ -873,8 +872,10 @@ class MainWindow(QMainWindow):
                     'pitch': data.get('pitch', 0),
                     'roll': data.get('roll', 0),
                     'yaw': data.get('yaw', 0),
-                    'bay_pressure': data.get('bay_pressure',0.0),
-                    'bay_temperature': data.get('bay_temperature',0.0)
+                    'status': data.get('status', 0),
+                    'rbs': data.get('bcs', 0)
+                    # 'bay_pressure': data.get('bay_pressure',0.0),
+                    # 'bay_temperature': data.get('bay_temperature',0.0)
                 },
                 'transmission': {
                     'rssi': data.get('rssi', 0),
@@ -992,7 +993,7 @@ class MainWindow(QMainWindow):
 
         self.alt_plot.add_point(timestamp,self.current_data['altitude'])
         self.ver_velocity_plot.add_point(timestamp,self.current_data['ver_velocity'])
-        self.ver_accel_plot.add_point(timestamp,self.current_data['ver_accel'])
+        # self.ver_accel_plot.add_point(timestamp,self.current_data['ver_accel'])
         self.pitch_plot.add_point(timestamp,self.current_data['pitch'])
         self.roll_plot.add_point(timestamp,self.current_data['roll'])
         self.yaw_plot.add_point(timestamp,self.current_data['yaw'])
@@ -1000,7 +1001,7 @@ class MainWindow(QMainWindow):
         values = [
             f"{self.current_data['altitude']:.2f} m",
             f"{self.current_data['ver_velocity']:.2f} m/s",
-            f"{self.current_data['ver_accel']:.2f} m/s²",
+            # f"{self.current_data['ver_accel']:.2f} m/s²",
             f"{self.current_data['pitch']:.2f}°",
             f"{self.current_data['roll']:.2f}°",
             f"{self.current_data['yaw']:.2f}°",
@@ -1058,18 +1059,14 @@ class MainWindow(QMainWindow):
         """Generuje losowe dane testowe"""
         test_data = {
             'ver_velocity': random.uniform(-10, 10),
-            'ver_accel': random.uniform(-2, 2),
             'altitude': random.uniform(0, 1000),
             'pitch': random.uniform(-90, 90),
             'roll': random.uniform(-90, 90),
             'yaw': random.uniform(0, 360),
-            'status': random.randint(0, 3),
+            'status': random.randint(0, 5),
             'latitude': 52.2549 + random.uniform(-0.01, 0.01),
             'longitude': 20.9004 + random.uniform(-0.01, 0.01),
-            'bay_pressure': random.uniform(900, 1100),
-            'bay_temperature': random.uniform(25, 30),
-            'rssi': random.randint(-120, -50),
-            'snr': random.uniform(-10, 10)
+            'rbs': random.randint(0, 1)
         }
         self.handle_processed_data(test_data)
         self.current_data = test_data

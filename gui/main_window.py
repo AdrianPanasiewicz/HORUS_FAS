@@ -80,6 +80,7 @@ class MainWindow(QMainWindow):
             self.logger.info(f"Konfiguracja LoRa ustawiona: {config['lora_config']}")
 
         self.serial.telemetry_received.connect(self.processor.handle_telemetry)
+        self.serial.auxiliary_received.connect(self.processor.handle_telemetry)
         self.serial.transmission_info_received.connect(self.processor.handle_transmission_info)
         self.processor.processed_data_ready.connect(self.handle_processed_data)
 

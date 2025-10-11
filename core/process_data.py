@@ -11,11 +11,16 @@ class ProcessData(QObject):
         self.logger = logging.getLogger(
             'HORUS_FAS.data_processor')
         self.current_telemetry = None
+        self.current_auxiliary = None
         self.current_transmission = None
         self.past = None
 
     def handle_telemetry(self, telemetry):
         self.current_telemetry = telemetry
+        self.process_and_emit()
+
+    def handle_auxiliary(self, auxiliary):
+        self.current_auxiliary = auxiliary
         self.process_and_emit()
 
     def handle_transmission_info(self, transmission):
@@ -25,8 +30,7 @@ class ProcessData(QObject):
     def process_and_emit(self):
         if self.current_telemetry and self.current_transmission:
             try:
-                combined_data = {**self.current_telemetry,
-                                 **self.current_transmission}
+                combined_data = {**self.current_telemetry, **self.current_auxiliary}
                 self.logger.debug(
                     f"Połączone dane do wysłania: {combined_data}")
                 self.processed_data_ready.emit(

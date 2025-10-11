@@ -10,6 +10,7 @@ from PyQt5.QtCore import QObject, pyqtSignal
 
 class SerialReader(QObject):
     telemetry_received = pyqtSignal(dict)
+    auxiliary_received = pyqtSignal(dict)
     transmission_info_received = pyqtSignal(dict)
 
     def __init__(self, port="COM7", baudrate=9600, transmitter=None):
@@ -68,39 +69,49 @@ class SerialReader(QObject):
             if match:
                 try:
                     hex_data = match.group(1)
-                    self.logger.debug(f"Odczytany hex: {hex_data}")
                     byte_data = bytes.fromhex(hex_data)
-                    decoded_string = byte_data.decode('utf-8', errors='replace')
+                    decoded_string = byte_data.decode('utf-8', errors='replace').strip()
                     self.logger.debug(f"Zdekodowany string: {decoded_string}")
-                    data = decoded_string.split(";")
 
-                    if len(data) < 7:
-                        self.logger.warning(f"Niewystarczająca liczba danych: {data}")
-                        return
+                    prefix = decoded_string[0]
+                    data = decoded_string[1:].split(";")
 
-                    telemetry = {
-                        'velocity': float(data[0]),
-                        'pitch': float(data[1]),
-                        'roll': float(data[2]),
-                        'status': int(data[3],2),
-                        'altitude': float(data[4]),
-                        'latitude': float(data[5]),
-                        'longitude': float(data[6])
-                    }
+                    if prefix == "A":
+                        if len(data) < 6:
+                            self.logger.warning(f"Niewystarczająca liczba danych A: {data}")
+                            return
+                        telemetry = {
+                            'pitch': float(data[0]),
+                            'roll': float(data[1]),
+                            'heading': float(data[2]),
+                            'vertical_velocity': float(data[3]),
+                            'altitude': float(data[4]),
+                            'rbs': float(data[5])
+                        }
+                        self.logger.info(
+                            f"Dane telemetryczne A: P={telemetry['pitch']}, R={telemetry['roll']}, "
+                            f"H={telemetry['heading']}, VV={telemetry['vertical_velocity']}, "
+                            f"ALT={telemetry['altitude']}, RBS={telemetry['rbs']}")
+                        self.telemetry_received.emit(telemetry)
 
-                    self.logger.info(
-                        f"Dane telemetryczne: "
-                        f"V={telemetry['velocity']}, "
-                        f"P={telemetry['pitch']}, "
-                        f"R={telemetry['roll']}, "
-                        f"ST={telemetry['status']}, "
-                        f"ALT={telemetry['altitude']}, "
-                        f"LAT={telemetry['latitude']}, "
-                        f"LON={telemetry['longitude']}")
+                    elif prefix == "B":
+                        if len(data) < 3:
+                            self.logger.warning(f"Niewystarczająca liczba danych B: {data}")
+                            return
+                        auxiliary = {
+                            'latitude': data[0],
+                            'longitude': data[1],
+                            'status': int(data[2])
+                        }
+                        self.logger.info(
+                            f"Dane pomocnicze B: LAT={auxiliary['latitude']}, "
+                            f"LON={auxiliary['longitude']}, STS={auxiliary['status']}")
+                        self.auxiliary_received.emit(auxiliary)
+                    else:
+                        self.logger.warning(f"Nieznany prefiks danych: {prefix}")
 
-                    self.telemetry_received.emit(telemetry)
                 except Exception as e:
-                    self.logger.error(f"Błąd dekodowania danych telemetrycznych: {e}")
+                    self.logger.error(f"Błąd dekodowania danych: {e}")
             else:
                 self.logger.debug("Nie znaleziono danych hex w linii RX")
         else:
@@ -113,16 +124,11 @@ class SerialReader(QObject):
                         'rssi': int(match.group(2)),
                         'snr': int(match.group(3))
                     }
-
                     self.logger.debug(
-                        f"Parametry transmisji: "
-                        f"LEN={transmission['len']}, "
-                        f"RSSI={transmission['rssi']}, "
-                        f"SNR={transmission['snr']}")
-
+                        f"Parametry transmisji: LEN={transmission['len']}, "
+                        f"RSSI={transmission['rssi']}, SNR={transmission['snr']}")
                     if self.transmitter:
                         self.transmitter.last_transmission = transmission
-
                     self.transmission_info_received.emit(transmission)
                 except Exception as e:
                     self.logger.warning(f"Błąd odczytu parametrów transmisji: {e}")

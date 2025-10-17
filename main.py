@@ -5,6 +5,8 @@ import platform
 import threading
 from functools import partial
 from PyQt5.QtWidgets import QApplication, QDialog
+
+from core.csv_handler import CsvHandler
 from gui.main_window import MainWindow
 from core.serial_config import SerialConfigDialog
 from core.utils import Utils
@@ -77,7 +79,9 @@ def main():
     gpio_reader.subscribe_button_held(partial(serial_reader.send_data, "abort"))
     logger.debug("GPIO event subscribed to send abort signal")
 
-    window = MainWindow(config, transmitter, gpio_reader)
+    csv_handler = CsvHandler()
+
+    window = MainWindow(config, transmitter, gpio_reader, csv_handler)
     logger.debug("MainWindow initialized")
 
     transmitter.subscribe_on_partner_connected(window.on_partner_connected)

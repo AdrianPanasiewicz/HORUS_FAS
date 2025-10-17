@@ -16,7 +16,7 @@ class SerialConfigDialog(QDialog):
         super().__init__(parent)
         self.logger = logging.getLogger('HORUS_FAS.serial_config')
         self.setWindowTitle(
-            "Konfiguracja portu szeregowego i LoRa")
+            "Okno konfiguracyjne HORUS FAS")
         self.setFixedSize(490, 600)
         self.setStyleSheet("""
             QDialog { background-color: #2c3e50; }

@@ -6,10 +6,11 @@ from PyQt5.QtCore import QObject, pyqtSignal
 class ProcessData(QObject):
     processed_data_ready = pyqtSignal(dict)
 
-    def __init__(self):
+    def __init__(self, csv_handler):
         super().__init__()
         self.logger = logging.getLogger(
             'HORUS_FAS.data_processor')
+        self.csv_handler = csv_handler
         self.current_telemetry = None
         self.current_auxiliary = None
         self.current_transmission = None
@@ -33,6 +34,7 @@ class ProcessData(QObject):
                 combined_data = {**self.current_telemetry, **self.current_auxiliary}
                 self.logger.debug(
                     f"Połączone dane do wysłania: {combined_data}")
+                self.csv_handler.write_row(combined_data)
                 self.processed_data_ready.emit(
                     combined_data)
 

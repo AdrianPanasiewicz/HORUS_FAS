@@ -26,7 +26,7 @@ import random
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, config, transmitter, gpio_reader):
+    def __init__(self, config, transmitter, gpio_reader, csv_handler):
         super().__init__()
         self.transmitter = transmitter
         self.is_partner_connected = False
@@ -59,7 +59,7 @@ class MainWindow(QMainWindow):
         self.map_view = None
         self.mission_aborted = False
 
-        self.csv_handler = CsvHandler()
+        self.csv_handler = csv_handler
         self.logger.info(
             f"CSV handler zainicjalizowany w sesji: {self.csv_handler.session_dir}")
 
@@ -71,7 +71,7 @@ class MainWindow(QMainWindow):
 
         self.serial = SerialReader(config['port'], config['baudrate'])
         self.logger.info(f"SerialReader zainicjalizowany na porcie {config['port']} z baudrate {config['baudrate']}")
-        self.processor = ProcessData()
+        self.processor = ProcessData(csv_handler)
         self.logger.info(
             f"Singleton ProcessData zainicjalizowany")
 
@@ -904,7 +904,7 @@ class MainWindow(QMainWindow):
         </div>
         """
 
-        QMessageBox.about(self, "About HORUS-CSS", about_text)
+        QMessageBox.about(self, "About HORUS-FAS", about_text)
 
     def show_about_kns_dialog(self):
         about_text = """

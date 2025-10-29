@@ -856,7 +856,6 @@ class MainWindow(QMainWindow):
 
     def handle_processed_data(self, data):
         try:
-
             self.current_data = data
             self.update_data()
             self.csv_handler.write_row(data)

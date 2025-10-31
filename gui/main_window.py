@@ -1052,6 +1052,7 @@ class MainWindow(QMainWindow):
         self.test_timer = QtCore.QTimer()
         self.test_timer.setTimerType(QtCore.Qt.PreciseTimer)  # Dokładniejszy timer
         self.test_timer.timeout.connect(self._generate_test_data)
+        #self.transmitter.send_data(self._generate_test_data)  # Dodałem do testów
 
         self.test_timer.start(1000)
 

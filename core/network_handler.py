@@ -8,7 +8,7 @@ from time import sleep
 class NetworkTransmitter(QObject):
     data_received_signal = pyqtSignal()
 
-    def __init__(self, host='192.168.0.66', port=65432):
+    def __init__(self, host='192.168.154.1', port=65432):
         super().__init__()
         self.host = host
         self.port = port

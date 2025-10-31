@@ -244,8 +244,8 @@ class SerialConfigDialog(QDialog):
             self.port_name = self.port_combo.currentText()
         self.baud_rate = int(self.baud_combo.currentText())
         self.network_config = {
-            'ip_address': self.ip_input.currentText(),
-            'port': self.ip_port.currentText()
+            'ip_address': self.ip_input.text(),
+            'port': self.port_input.text()
         }
         if self.lora_config is not None:
             self.lora_config = {

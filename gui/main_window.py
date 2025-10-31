@@ -998,6 +998,16 @@ class MainWindow(QMainWindow):
 
         if self.current_data['ver_velocity'] != self.previous_data.get('ver_velocity'):
             self.ver_velocity_plot.add_point(timestamp, self.current_data['ver_velocity'])
+            ts, vel = self.ver_velocity_plot.get_data_points()
+            if len(ts) < 2:
+                acc = 0.0
+            else:
+                dt = ts[-1] - ts[-2]
+                if dt == 0:
+                    acc = 0.0
+                else:
+                    acc = (vel[-1] - vel[-2]) / dt
+                self.ver_accel_plot.add_point(timestamp,acc)
 
         if self.current_data['pitch'] != self.previous_data.get('pitch'):
             self.pitch_plot.add_point(timestamp, self.current_data['pitch'])

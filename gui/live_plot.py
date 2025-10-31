@@ -171,6 +171,9 @@ class LivePlot(QWidget):
 		self.curve.setData(self.timestamps, self.values)
 		self.zoom_to_data()
 
+	def get_data_points(self):
+		return self.timestamps.copy(), self.values.copy()
+
 	def reset_view(self):
 		if len(self.timestamps) == 0:
 			return

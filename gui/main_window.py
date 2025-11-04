@@ -1028,9 +1028,13 @@ class MainWindow(QMainWindow):
             f"{self.current_data['longitude']:.6f}° E"
         ]
 
-        for i, value in enumerate(values):
-            current_item = self.table.item(i, 1)
-            if current_item is None or current_item.text() != value:
+        parameters = ["Altitude", "Velocity", "Pitch", "Roll", "Yaw", "Latitude", "Longitude"]
+
+        for i, (param, value) in enumerate(zip(parameters, values)):
+            current_value_item = self.table.item(i, 1)
+
+            if current_value_item is None or current_value_item.text() != value:
+                self.table.setItem(i, 0, QTableWidgetItem(param))
                 self.table.setItem(i, 1, QTableWidgetItem(value))
 
         self.now_str = datetime.now().strftime("%H:%M:%S")

@@ -189,7 +189,7 @@ class MainWindow(QMainWindow):
         values = [
             f"{self.current_data['altitude']:.2f} m",
             f"{self.current_data['ver_velocity']:.2f} m/s",
-            # f"{self.current_data['ver_accel']:.2f} m/s²",
+            #f"{self.current_data['ver_accel']:.2f} m/s²",
             f"{self.current_data['pitch']:.2f}°",
             f"{self.current_data['roll']:.2f}°",
             f"{self.current_data['yaw']:.2f}°",
@@ -856,6 +856,15 @@ class MainWindow(QMainWindow):
 
     def handle_processed_data(self, data):
         try:
+            if 'latitude' not in data or 'longitude' not in data:
+                self.logger.warning("Brak danych GPS w pakiecie – pomijam aktualizację mapy.")
+                data.setdefault('latitude', self.current_data.get('latitude', 52.2549))
+                data.setdefault('longitude', self.current_data.get('longitude', 20.9004))
+
+            if 'status' not in data:
+                self.logger.warning("Brak pola 'status' w pakiecie – ustawiam domyślny.")
+                data['status'] = self.current_data.get('status', 'OK')
+
             self.current_data = data
             self.update_data()
             self.csv_handler.write_row(data)

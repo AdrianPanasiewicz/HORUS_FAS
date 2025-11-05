@@ -57,10 +57,10 @@ class SerialReader(QObject):
                     self.DecodeLine(line)
                 else:
                     self.logger.debug("Odczytano pustą linię")
-                time.sleep(0.1)
+                time.sleep(0.14)
             except Exception as e:
                 self.logger.error(f"Błąd odczytu: {e}")
-                time.sleep(0.1)
+                time.sleep(0.14)
 
     def DecodeLine(self, line):
         self.logger.debug(f"Odebrano linię: {line}")
@@ -88,6 +88,9 @@ class SerialReader(QObject):
                             'altitude': float(data[4]),
                             'rbs': float(data[5])
                         }
+                        self.last_telemetry = telemetry
+                        self.telemetry_received.emit(telemetry)
+
                         self.logger.info(
                             f"Dane telemetryczne A: P={telemetry['pitch']}, R={telemetry['roll']}, "
                             f"H={telemetry['yaw']}, VV={telemetry['ver_velocity']}, "

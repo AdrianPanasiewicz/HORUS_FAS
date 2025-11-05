@@ -23,15 +23,15 @@ class ProcessData(QObject):
         self.timeout_timer.timeout.connect(self.process_and_emit)
 
     def handle_telemetry(self, telemetry):
-        if not self.first_telemetry_packet_received:
-            self.current_telemetry = telemetry
-            self.first_telemetry_packet_received = True
-            self.timeout_timer.start(500)
-        else:
-            if telemetry['snr'] > self.current_telemetry['snr']:
-                self.current_telemetry = telemetry
-            self.first_telemetry_packet_received = False
-            self.process_and_emit()
+        #if not self.first_telemetry_packet_received:
+        self.current_telemetry = telemetry
+            #self.first_telemetry_packet_received = True
+            #self.timeout_timer.start(100)
+        #else:
+            #if telemetry['snr'] > self.current_telemetry['snr']:
+            #    self.current_telemetry = telemetry
+          #self.first_telemetry_packet_received = False
+        self.process_and_emit()
 
     def handle_auxiliary(self, auxiliary):
         if not self.first_auxiliary_packet_received:

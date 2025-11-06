@@ -34,7 +34,7 @@ class SerialThread(QThread):
             except serial.SerialException as e:
                 self.logger.error(f"Błąd wątku odczytu: {e}")
                 break
-            QThread.msleep(50)
+            QThread.msleep(60)
 
         self.logger.info("Wątek odczytu zakończył działanie.")
 

@@ -1156,11 +1156,30 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Zamykanie aplikacji"""
-        self.serial.stop_reading()
-        self.csv_handler.close_file()
-        if hasattr(self, 'test_timer') and self.test_timer:
-            self.test_timer.stop()
-        if hasattr(self, 'transmitter'):
-            self.transmitter.unsubscribe_on_partner_connected(self.on_partner_connected)
-            self.transmitter.unsubscribe_on_partner_disconnected(self.on_partner_disconnected)
+        try:
+            # Zatrzymaj odczyt LoRa
+            if hasattr(self, 'serial_reader') and self.serial_reader:
+                self.serial_reader.stop_reading()
+            elif hasattr(self, 'serial') and self.serial:
+                self.serial.stop_reading()
+
+            # Zamknij plik CSV, jeśli używasz logowania danych
+            if hasattr(self, 'csv_handler') and self.csv_handler:
+                self.csv_handler.close_file()
+
+            # Zatrzymaj ewentualny timer testowy
+            if hasattr(self, 'test_timer') and self.test_timer:
+                self.test_timer.stop()
+
+            # Odsubskrybuj eventy transmitera, jeśli istnieje
+            if hasattr(self, 'transmitter') and self.transmitter:
+                self.transmitter.unsubscribe_on_partner_connected(self.on_partner_connected)
+                self.transmitter.unsubscribe_on_partner_disconnected(self.on_partner_disconnected)
+
+            self.logger.info("Aplikacja zamykana – zasoby zwolnione.")
+        except Exception as e:
+            print(f"Błąd przy zamykaniu aplikacji: {e}")
+            self.logger.error(f"Błąd przy zamykaniu aplikacji: {e}")
+
+        # Na końcu wywołaj metodę nadrzędną, żeby Qt poprawnie zamknęło okno
         super().closeEvent(event)

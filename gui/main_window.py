@@ -26,7 +26,7 @@ import random
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, config, transmitter, gpio_reader, csv_handler):
+    def __init__(self, config, transmitter, gpio_reader, csv_handler, serial_reader):
         super().__init__()
         self.transmitter = transmitter
         self.is_partner_connected = False
@@ -68,25 +68,50 @@ class MainWindow(QMainWindow):
             open(r'gui/resources/themes/dark_blue.qss').read())
         self.showMaximized()
 
-        self.serial = SerialReader(config['port'], config['baudrate'])
-        self.logger.info(f"SerialReader zainicjalizowany na porcie {config['port']} z baudrate {config['baudrate']}")
+        # Use the passed serial_reader reference instead of creating new one
+        self.serial = serial_reader
+        if self.serial:
+            self.logger.info(f"Using existing SerialReader on port {config['port']}")
+        else:
+            self.logger.warning("No SerialReader provided - creating fallback")
+            # Only create as fallback if absolutely necessary
+            if config.get('port'):
+                self.serial = SerialReader(
+                    port=config['port'],
+                    baudrate=config.get('baudrate', 9600),
+                    transmitter=transmitter
+                )
+                self.logger.info(f"Created fallback SerialReader on port {config['port']}")
+            else:
+                self.logger.error("No serial port configured and no SerialReader provided")
+
         self.processor = ProcessData(csv_handler)
-        self.logger.info(
-            f"Singleton ProcessData zainicjalizowany")
+        self.logger.info("Singleton ProcessData zainicjalizowany")
 
-        if config['lora_config']:
-            self.serial.LoraSet(config['lora_config'], config['is_config_selected'])
-            self.logger.info(f"Konfiguracja LoRa ustawiona: {config['lora_config']}")
+        # Connect signals only if we have a serial reader
+        if self.serial:
+            self.serial.telemetry_received.connect(self.processor.handle_telemetry)
+            self.serial.auxiliary_received.connect(self.processor.handle_telemetry)
+            self.serial.transmission_info_received.connect(self.processor.handle_transmission_info)
+            self.logger.debug("SerialReader signals connected to processor")
+        else:
+            self.logger.warning("Cannot connect SerialReader signals - no SerialReader available")
 
-        self.serial.telemetry_received.connect(self.processor.handle_telemetry)
-        self.serial.auxiliary_received.connect(self.processor.handle_telemetry)
-        self.serial.transmission_info_received.connect(self.processor.handle_transmission_info)
         self.processor.processed_data_ready.connect(self.handle_processed_data)
 
-        self.transmitter.data_received_signal.connect(self.abort_mission_pressed)
+        # Network and GPIO connections
+        if self.transmitter:
+            self.transmitter.data_received_signal.connect(self.abort_mission_pressed)
+            self.logger.debug("Transmitter abort signal connected")
+        else:
+            self.logger.warning("No transmitter available for abort signal")
 
         self.gpio_reader = gpio_reader
-        self.gpio_reader.held.connect(self.abort_mission_pressed)
+        if self.gpio_reader:
+            self.gpio_reader.held.connect(self.abort_mission_pressed)
+            self.logger.debug("GPIO abort signal connected")
+        else:
+            self.logger.warning("No GPIO reader available for abort signal")
 
         # Wykresy
         self.alt_plot = LivePlot(title="Altitude", color='b', timespan=30)
@@ -155,10 +180,12 @@ class MainWindow(QMainWindow):
         central.setLayout(main_layout)
         self.setCentralWidget(central)
 
-        self.serial.start_reading()
+        # Don't start reading here - it's already started in main.py
+        # self.serial.start_reading()
 
         self.setup_status_bar()
         self.declare_menus()
+        self.logger.info("MainWindow initialization completed successfully")
 
     def create_right_panel(self):
         """Tworzy dolny panel z danymi i mapą"""
